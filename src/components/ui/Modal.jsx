@@ -28,14 +28,16 @@ export default function Modal({ abierto, onCerrar, titulo, children, ancho = 'ma
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/40 px-4 py-10"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 py-6"
       onMouseDown={onCerrar}
     >
       <div
-        className={['w-full rounded-lg border border-line bg-white shadow-xl', ancho].join(' ')}
+        className={['w-full max-h-[85vh] flex flex-col rounded-lg border border-line bg-white shadow-xl', ancho].join(
+          ' '
+        )}
         onMouseDown={(evento) => evento.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+        <div className="shrink-0 flex items-center justify-between border-b border-line px-6 py-4">
           <p className="font-display text-lg text-ink">{titulo}</p>
           <button
             type="button"
@@ -46,7 +48,7 @@ export default function Modal({ abierto, onCerrar, titulo, children, ancho = 'ma
             &times;
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-6 py-5 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

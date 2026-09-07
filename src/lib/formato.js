@@ -27,6 +27,15 @@ export function formatearFechaLarga(valor = new Date()) {
   });
 }
 
+// Fecha con día de la semana: "lunes, 07/09/2026"
+export function formatearFechaConDia(valor) {
+  if (!valor) return '—';
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(valor) ? `${valor}T00:00:00.000Z` : valor);
+  if (Number.isNaN(d.getTime())) return String(valor);
+  const dia = d.toLocaleDateString(LOCALE, { timeZone: 'UTC', weekday: 'long' });
+  return `${capitalizar(dia)}, ${formatearFecha(valor)}`;
+}
+
 // Hora en formato 24h "HH:MM". Acepta "HH:MM" (ya listo) o una fecha ISO.
 export function formatearHora(valor) {
   if (!valor) return '—';

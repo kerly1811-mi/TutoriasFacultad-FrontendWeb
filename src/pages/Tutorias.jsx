@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import Layout from '../components/layout/Layout';
 import { useApiResource } from '../hooks/useApiResource';
 import { tutoriasApi } from '../api/endpoints/tutorias';
-import { ETIQUETA_TIPO_ESPACIO } from '../lib/constantes';
+import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO } from '../lib/constantes';
 import { formatearFecha, formatearRango } from '../lib/formato';
 import { Card, DataState, PageHeader, SkeletonCards } from '../components/ui';
 
@@ -16,7 +16,7 @@ export default function Tutorias() {
   return (
     <Layout>
       <PageHeader
-        titulo="Tutorías habilitadas"
+        titulo="Tutorías habilitadas por curso"
         descripcion="Tutorías programadas: en qué aula, a qué hora y con qué docente."
       />
 
@@ -38,7 +38,11 @@ export default function Tutorias() {
                 {t.aula}
                 <span className="text-ink/40"> · {ETIQUETA_TIPO_ESPACIO[t.tipo] || t.tipo}</span>
               </p>
-              {t.ubicacion && <p className="text-sm text-ink/50">{t.ubicacion}</p>}
+              {t.bloque && (
+                <p className="text-sm text-ink/50">
+                  {ETIQUETA_BLOQUE[t.bloque] || t.bloque} · Piso {t.piso}
+                </p>
+              )}
               <p className="text-sm text-ink/60 mt-3 pt-3 border-t border-line">
                 Docente: <span className="font-medium text-ink">{t.docente}</span>
               </p>

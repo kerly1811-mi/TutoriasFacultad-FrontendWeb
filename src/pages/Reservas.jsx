@@ -1,12 +1,14 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
+import ModalNuevaReserva from '../components/reservas/ModalNuevaReserva';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { reservasApi } from '../api/endpoints/reservas';
 import { ETIQUETA_ESTADO_RESERVA } from '../lib/constantes';
 import { formatearFecha, formatearRango, mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, PageHeader, Table } from '../components/ui';
+import { Badge, Button, ConfirmDialog, PageHeader, Table } from '../components/ui';
 
 const COLUMNAS = [
   { clave: 'espacio', titulo: 'Espacio' },
@@ -19,9 +21,11 @@ const COLUMNAS = [
 
 export default function Reservas() {
   const { usuario } = useAuth();
+  const { mostrarToast } = useToast();
   const esAdmin = usuario?.rol === 'ADMINISTRADOR';
-  const [error, setError] = useState(null);
   const [cancelandoId, setCancelandoId] = useState(null);
+  const [aCancelar, setACancelar] = useState(null); // reserva pendiente de confirmar cancelación
+  const [modalAbierto, setModalAbierto] = useState(false);
 
   const cargar = useCallback(() => reservasApi.listar({ mias: !esAdmin }), [esAdmin]);
   const {
@@ -33,17 +37,19 @@ export default function Reservas() {
 
   const reservas = data ?? [];
 
-  async function cancelar(id) {
-    if (!window.confirm('¿Cancelar esta reserva? El aula quedará libre en esa franja.')) return;
+  async function confirmarCancelacion() {
+    if (!aCancelar) return;
+    const id = aCancelar.id_rev;
     setCancelandoId(id);
-    setError(null);
     try {
       await reservasApi.cancelar(id);
       await recargar();
+      mostrarToast('Reserva cancelada.', 'exito');
     } catch (err) {
-      setError(mensajeDeError(err, 'No se pudo cancelar la reserva.'));
+      mostrarToast(mensajeDeError(err, 'No se pudo cancelar la reserva.'), 'error');
     } finally {
       setCancelandoId(null);
+      setACancelar(null);
     }
   }
 
@@ -53,18 +59,8 @@ export default function Reservas() {
         titulo={esAdmin ? 'Reservas' : 'Mis reservas'}
         descripcion={esAdmin ? 'Todas las reservas registradas.' : 'Espacios que has reservado para tus tutorías.'}
       >
-        {!esAdmin && (
-          <Button as={Link} to="/reservar">
-            Nueva reserva
-          </Button>
-        )}
+        {!esAdmin && <Button onClick={() => setModalAbierto(true)}>Nueva reserva</Button>}
       </PageHeader>
-
-      {error && (
-        <div className="mt-4">
-          <Alert>{error}</Alert>
-        </div>
-      )}
 
       <div className="mt-6">
         <Table
@@ -90,7 +86,7 @@ export default function Reservas() {
                 </Link>
                 {r.estado === 'RESERVADA' && (
                   <button
-                    onClick={() => cancelar(r.id_rev)}
+                    onClick={() => setACancelar(r)}
                     disabled={cancelandoId === r.id_rev}
                     className="ml-4 text-sm text-danger font-medium hover:underline disabled:opacity-50"
                   >
@@ -102,6 +98,28 @@ export default function Reservas() {
           )}
         />
       </div>
+
+      {!esAdmin && (
+        <ModalNuevaReserva
+          abierto={modalAbierto}
+          onCerrar={() => setModalAbierto(false)}
+          onCreada={(msg) => {
+            mostrarToast(msg, 'exito');
+            recargar();
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        abierto={Boolean(aCancelar)}
+        titulo="Cancelar reserva"
+        mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
+        textoConfirmar="Cancelar reserva"
+        textoCargando="Cancelando…"
+        cargando={Boolean(cancelandoId)}
+        onConfirmar={confirmarCancelacion}
+        onCancelar={() => setACancelar(null)}
+      />
     </Layout>
   );
 }

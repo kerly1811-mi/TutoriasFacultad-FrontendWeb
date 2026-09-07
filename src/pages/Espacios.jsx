@@ -1,21 +1,39 @@
 import { useCallback, useState } from 'react';
 import Layout from '../components/layout/Layout';
+import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { useForm } from '../hooks/useForm';
 import { espaciosApi } from '../api/endpoints/espacios';
 import {
+  ETIQUETA_BLOQUE,
   ETIQUETA_ESTADO_ESPACIO,
   ETIQUETA_TIPO_ESPACIO,
   ESTILO_ESTADO_ESPACIO,
+  OPCIONES_BLOQUE,
   OPCIONES_ESTADO_ESPACIO,
   OPCIONES_TIPO_ESPACIO,
+  opcionesPisoPara,
 } from '../lib/constantes';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, Card, DataState, Input, Modal, PageHeader, Select, SkeletonCards } from '../components/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  ConfirmDialog,
+  DataState,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  SkeletonCards,
+} from '../components/ui';
 
 export default function Espacios() {
+  const { mostrarToast } = useToast();
   const [modal, setModal] = useState(null); // null | { espacio? }
-  const [errorAccion, setErrorAccion] = useState(null);
+  const [aEliminar, setAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const cargar = useCallback(() => espaciosApi.listar(), []);
   const { data, cargando, error, recargar } = useApiResource(cargar, {
@@ -23,25 +41,28 @@ export default function Espacios() {
   });
   const espacios = data ?? [];
 
-  async function eliminar(esp) {
-    if (!window.confirm(`¿Eliminar "${esp.nom_esp}"?`)) return;
-    setErrorAccion(null);
+  async function confirmarEliminar() {
+    if (!aEliminar) return;
+    setEliminando(true);
     try {
-      await espaciosApi.eliminar(esp.id_esp);
+      await espaciosApi.eliminar(aEliminar.id_esp);
       recargar();
+      mostrarToast(`Espacio "${aEliminar.nom_esp}" eliminado.`, 'exito');
     } catch (err) {
-      setErrorAccion(mensajeDeError(err, 'No se pudo eliminar el espacio.'));
+      mostrarToast(mensajeDeError(err, 'No se pudo eliminar el espacio.'), 'error');
+    } finally {
+      setEliminando(false);
+      setAEliminar(null);
     }
   }
 
   async function alternarMantenimiento(esp) {
-    setErrorAccion(null);
     const nuevo = esp.estado === 'MANTENIMIENTO' ? 'DISPONIBLE' : 'MANTENIMIENTO';
     try {
       await espaciosApi.actualizar(esp.id_esp, { estado: nuevo });
       recargar();
     } catch (err) {
-      setErrorAccion(mensajeDeError(err, 'No se pudo cambiar el estado.'));
+      mostrarToast(mensajeDeError(err, 'No se pudo cambiar el estado.'), 'error');
     }
   }
 
@@ -50,12 +71,6 @@ export default function Espacios() {
       <PageHeader titulo="Espacios" descripcion="Aulas y laboratorios del edificio de la FISEI.">
         <Button onClick={() => setModal({})}>Nuevo espacio</Button>
       </PageHeader>
-
-      {errorAccion && (
-        <div className="mt-4">
-          <Alert>{errorAccion}</Alert>
-        </div>
-      )}
 
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <DataState
@@ -76,7 +91,9 @@ export default function Espacios() {
                 </Badge>
               </div>
               <p className="font-display text-lg text-ink mt-1">{esp.nom_esp}</p>
-              <p className="text-sm text-ink/60 mt-1">{esp.ubicacion || 'Ubicación no especificada'}</p>
+              <p className="text-sm text-ink/60 mt-1">
+                {ETIQUETA_BLOQUE[esp.bloque] || esp.bloque} · Piso {esp.piso}
+              </p>
               <p className="text-sm text-ink/60 mt-3 pt-3 border-t border-line">
                 Capacidad: <span className="font-medium text-ink">{esp.capacidad}</span> personas
               </p>
@@ -87,7 +104,7 @@ export default function Espacios() {
                 <button onClick={() => alternarMantenimiento(esp)} className="text-ink/70 font-medium hover:underline">
                   {esp.estado === 'MANTENIMIENTO' ? 'Marcar disponible' : 'Poner en mantenimiento'}
                 </button>
-                <button onClick={() => eliminar(esp)} className="text-danger font-medium hover:underline">
+                <button onClick={() => setAEliminar(esp)} className="text-danger font-medium hover:underline">
                   Eliminar
                 </button>
               </div>
@@ -112,20 +129,39 @@ export default function Espacios() {
           />
         )}
       </Modal>
+
+      <ConfirmDialog
+        abierto={Boolean(aEliminar)}
+        titulo="Eliminar espacio"
+        mensaje={aEliminar ? `¿Eliminar "${aEliminar.nom_esp}"? Esta acción no se puede deshacer.` : ''}
+        textoConfirmar="Eliminar"
+        textoCargando="Eliminando…"
+        cargando={eliminando}
+        onConfirmar={confirmarEliminar}
+        onCancelar={() => setAEliminar(null)}
+      />
     </Layout>
   );
 }
 
 function FormularioEspacio({ espacio, onCancelar, onListo }) {
-  const { valores, handleChange } = useForm({
+  const { valores, handleChange, setValores } = useForm({
     nom_esp: espacio?.nom_esp || '',
     tipo: espacio?.tipo || 'AULA',
     capacidad: espacio?.capacidad ? String(espacio.capacidad) : '',
-    ubicacion: espacio?.ubicacion || '',
+    bloque: espacio?.bloque || 'BLOQUE_1',
+    piso: espacio?.piso || '',
     estado: espacio?.estado || 'DISPONIBLE',
   });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
+
+  const opcionesPiso = opcionesPisoPara(valores.bloque);
+
+  function manejarCambioBloque(e) {
+    const nuevoBloque = e.target.value;
+    setValores((v) => ({ ...v, bloque: nuevoBloque, piso: '' }));
+  }
 
   async function manejarEnvio(e) {
     e.preventDefault();
@@ -165,15 +201,22 @@ function FormularioEspacio({ espacio, onCancelar, onListo }) {
         value={valores.capacidad}
         onChange={handleChange}
       />
-      <div className="col-span-2">
-        <Input
-          label="Ubicación"
-          name="ubicacion"
-          value={valores.ubicacion}
-          onChange={handleChange}
-          placeholder="Bloque B - Piso 1"
-        />
-      </div>
+      <Select
+        label="Bloque"
+        name="bloque"
+        required
+        value={valores.bloque}
+        onChange={manejarCambioBloque}
+        options={OPCIONES_BLOQUE}
+      />
+      <Select label="Piso" name="piso" required value={valores.piso} onChange={handleChange}>
+        <option value="">Selecciona un piso</option>
+        {opcionesPiso.map((op) => (
+          <option key={op.value} value={op.value}>
+            {op.label}
+          </option>
+        ))}
+      </Select>
       <Select
         label="Estado"
         name="estado"

@@ -9,7 +9,7 @@ export default {
         ink: '#0F243A', // azul muy oscuro: texto principal
         azul: {
           // Azul institucional UTA (color primario: botones, enlaces, barra lateral)
-          DEFAULT: '#00529B',
+          DEFAULT: '#00539b',
           dark: '#003B72',
           light: '#2E7FC1',
         },

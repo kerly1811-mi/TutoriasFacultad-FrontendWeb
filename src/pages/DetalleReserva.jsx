@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { useForm } from '../hooks/useForm';
 import { reservasApi } from '../api/endpoints/reservas';
@@ -10,7 +11,7 @@ import { documentosApi } from '../api/endpoints/documentos';
 import { ETIQUETA_ESTADO_RESERVA, ETIQUETA_TIPO_ESPACIO } from '../lib/constantes';
 import { PUEDE_COMPARTIR_DOCUMENTO, PUEDE_VER_ASISTENCIA, puede } from '../lib/permisos';
 import { formatearFecha, formatearHora, formatearRango, mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, Card, DataState, Input, Table } from '../components/ui';
+import { Alert, Badge, Button, Card, ConfirmDialog, DataState, Input, Table } from '../components/ui';
 
 const COLUMNAS_ASISTENCIA = [
   { clave: 'estudiante', titulo: 'Estudiante' },
@@ -22,7 +23,8 @@ export default function DetalleReserva() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { usuario } = useAuth();
-  const [errorAccion, setErrorAccion] = useState(null);
+  const { mostrarToast } = useToast();
+  const [confirmarCancelar, setConfirmarCancelar] = useState(false);
   const [cancelando, setCancelando] = useState(false);
 
   const cargarReserva = useCallback(() => reservasApi.obtener(id), [id]);
@@ -40,16 +42,16 @@ export default function DetalleReserva() {
     reserva && reserva.estado === 'RESERVADA' && (esDueno || usuario?.rol === 'ADMINISTRADOR');
 
   async function cancelar() {
-    if (!window.confirm('¿Cancelar esta reserva? El aula quedará libre en esa franja.')) return;
     setCancelando(true);
-    setErrorAccion(null);
     try {
       await reservasApi.cancelar(id);
       await recargar();
+      mostrarToast('Reserva cancelada.', 'exito');
     } catch (err) {
-      setErrorAccion(mensajeDeError(err, 'No se pudo cancelar la reserva.'));
+      mostrarToast(mensajeDeError(err, 'No se pudo cancelar la reserva.'), 'error');
     } finally {
       setCancelando(false);
+      setConfirmarCancelar(false);
     }
   }
 
@@ -85,12 +87,6 @@ export default function DetalleReserva() {
                 </Badge>
               </div>
 
-              {errorAccion && (
-                <div className="mt-4">
-                  <Alert>{errorAccion}</Alert>
-                </div>
-              )}
-
               <Card padding="p-6" className="mt-6">
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
                   <Dato titulo="Fecha" valor={formatearFecha(reserva.fecha)} />
@@ -108,7 +104,7 @@ export default function DetalleReserva() {
 
                 {puedeCancelar && (
                   <div className="mt-5 pt-5 border-t border-line">
-                    <Button variant="danger" size="sm" onClick={cancelar} cargando={cancelando} textoCargando="Cancelando…">
+                    <Button variant="danger" size="sm" onClick={() => setConfirmarCancelar(true)}>
                       Cancelar reserva
                     </Button>
                   </div>
@@ -122,6 +118,17 @@ export default function DetalleReserva() {
           )}
         </DataState>
       </div>
+
+      <ConfirmDialog
+        abierto={confirmarCancelar}
+        titulo="Cancelar reserva"
+        mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
+        textoConfirmar="Cancelar reserva"
+        textoCargando="Cancelando…"
+        cargando={cancelando}
+        onConfirmar={cancelar}
+        onCancelar={() => setConfirmarCancelar(false)}
+      />
     </Layout>
   );
 }

@@ -8,13 +8,16 @@ import { Card } from '../components/ui';
 
 const DESCRIPCION_SECCION = {
   '/tutorias': 'Tutorías habilitadas: aula, hora y docente.',
-  '/reservar': 'Reserva un espacio para una tutoría.',
-  '/reservas': 'Tus reservas y su estado.',
+  '/reservas': 'Reserva un espacio y consulta tus reservas.',
   '/horarios': 'Carga el horario semanal de clases de cada aula.',
   '/ocupacion': 'Qué aulas están en clase, reservadas o libres.',
   '/espacios': 'Alta, edición y mantenimiento de aulas y laboratorios.',
   '/usuarios': 'Da de alta docentes, laboratoristas y administradores.',
+  '/cursos': 'Crea cursos y asígnales un docente.',
+  '/matriculas': 'Matricula estudiantes en un curso.',
   '/control-acceso': 'Asistencia registrada en cada tutoría.',
+  '/solicitudes': 'Solicitudes de reserva entre estudiantes y docentes.',
+  '/mis-tutorias': 'Documentos y asistencia de tus tutorías.',
   '/reportes': 'Ocupación de espacios y reservas por docente.',
 };
 
@@ -33,7 +36,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
         {secciones.map((s) => (
           <Card key={s.to} as={Link} to={s.to} className="hover:border-azul/40 transition-colors block">
-            <p className="font-display text-lg text-ink">{s.etiqueta}</p>
+            <p className="font-display text-lg text-ink">
+              {typeof s.etiqueta === 'function' ? s.etiqueta(rol) : s.etiqueta}
+            </p>
             <p className="text-sm text-ink/60 mt-1">{DESCRIPCION_SECCION[s.to]}</p>
             <span className="inline-block text-sm text-azul font-medium mt-3">Ir →</span>
           </Card>

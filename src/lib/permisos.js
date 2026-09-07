@@ -6,22 +6,30 @@ export const NAV = [
   { to: '/dashboard', etiqueta: 'Panel', roles: ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'] },
 
   // Estudiante
-  { to: '/tutorias', etiqueta: 'Tutorías', roles: ['ESTUDIANTE'] },
+  { to: '/tutorias', etiqueta: 'Cursos', roles: ['ESTUDIANTE'] },
 
   // Docente
-  { to: '/reservar', etiqueta: 'Reservar', roles: ['DOCENTE'] },
   { to: '/reservas', etiqueta: 'Mis reservas', roles: ['DOCENTE'] },
 
   // Laboratorista
+  { to: '/espacios', etiqueta: 'Espacios', roles: ['LABORATORISTA'] },
   { to: '/horarios', etiqueta: 'Horarios', roles: ['LABORATORISTA'] },
+  { to: '/control-acceso', etiqueta: 'Control de acceso', roles: ['LABORATORISTA'] },
   { to: '/ocupacion', etiqueta: 'Ocupación', roles: ['LABORATORISTA'] },
 
   // Administrador
-  { to: '/espacios', etiqueta: 'Espacios', roles: ['ADMINISTRADOR'] },
   { to: '/usuarios', etiqueta: 'Usuarios', roles: ['ADMINISTRADOR'] },
+  { to: '/cursos', etiqueta: 'Cursos', roles: ['ADMINISTRADOR'] },
+  { to: '/matriculas', etiqueta: 'Matrículas', roles: ['ADMINISTRADOR'] },
 
   // Compartidas
-  { to: '/control-acceso', etiqueta: 'Control de acceso', roles: ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'] },
+  { to: '/control-acceso', etiqueta: 'Control de acceso', roles: ['DOCENTE', 'ADMINISTRADOR'] },
+  {
+    to: '/solicitudes',
+    etiqueta: (rol) => (rol === 'DOCENTE' ? 'Mis solicitudes' : 'Solicitudes'),
+    roles: ['DOCENTE', 'ESTUDIANTE'],
+  },
+  { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
   { to: '/reportes', etiqueta: 'Reportes', roles: ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'] },
 ];
 
@@ -29,23 +37,26 @@ export const NAV = [
 export const ACCESO_RUTA = {
   '/dashboard': ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'],
   '/tutorias': ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'],
-  '/reservar': ['DOCENTE'],
   '/reservas': ['DOCENTE', 'ADMINISTRADOR'],
   '/reservas/:id': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
   '/horarios': ['LABORATORISTA'],
   '/ocupacion': ['LABORATORISTA'],
-  '/espacios': ['ADMINISTRADOR'],
+  '/espacios': ['LABORATORISTA'],
   '/usuarios': ['ADMINISTRADOR'],
+  '/cursos': ['ADMINISTRADOR'],
+  '/matriculas': ['ADMINISTRADOR'],
   '/control-acceso': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
+  '/solicitudes': ['DOCENTE', 'ESTUDIANTE'],
+  '/mis-tutorias': ['ESTUDIANTE'],
   '/reportes': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
 };
 
 // A dónde mandar a cada rol tras iniciar sesión / si entra a una ruta sin permiso.
 export const INICIO_POR_ROL = {
   ESTUDIANTE: '/tutorias',
-  DOCENTE: '/reservar',
+  DOCENTE: '/reservas',
   LABORATORISTA: '/ocupacion',
-  ADMINISTRADOR: '/espacios',
+  ADMINISTRADOR: '/usuarios',
 };
 
 // Acciones dentro de una reserva.
