@@ -38,13 +38,13 @@ export default function DetalleReserva() {
   const puedeVerAsistencia = puede(PUEDE_VER_ASISTENCIA, usuario?.rol);
   const puedeCompartir = puede(PUEDE_COMPARTIR_DOCUMENTO, usuario?.rol);
   const esDueno = reserva && reserva.solicitante?.id_usr === usuario?.id;
-  const puedeCancelar =
-    reserva && reserva.estado === 'RESERVADA' && (esDueno || usuario?.rol === 'ADMINISTRADOR');
+  const puedeCancelarCualquiera = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'LABORATORISTA';
+  const puedeCancelar = reserva && reserva.estado === 'RESERVADA' && (esDueno || puedeCancelarCualquiera);
 
-  async function cancelar() {
+  async function cancelar(razon) {
     setCancelando(true);
     try {
-      await reservasApi.cancelar(id);
+      await reservasApi.cancelar(id, razon);
       await recargar();
       mostrarToast('Reserva cancelada.', 'exito');
     } catch (err) {
@@ -100,6 +100,10 @@ export default function DetalleReserva() {
                     }
                   />
                   <Dato titulo="Tema" valor={reserva.motivo || 'Sin especificar'} />
+                  {reserva.curso?.nom_cur && <Dato titulo="Curso" valor={reserva.curso.nom_cur} />}
+                  {reserva.estado === 'CANCELADA' && reserva.motivo_cancelacion && (
+                    <Dato titulo="Motivo de cancelación" valor={reserva.motivo_cancelacion} />
+                  )}
                 </dl>
 
                 {puedeCancelar && (
@@ -125,6 +129,9 @@ export default function DetalleReserva() {
         mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
         textoConfirmar="Cancelar reserva"
         textoCargando="Cancelando…"
+        pedirRazon
+        labelRazon="Motivo de la cancelación"
+        placeholderRazon="Ej: el docente no podrá asistir a esta tutoría"
         cargando={cancelando}
         onConfirmar={cancelar}
         onCancelar={() => setConfirmarCancelar(false)}

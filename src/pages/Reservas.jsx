@@ -37,12 +37,12 @@ export default function Reservas() {
 
   const reservas = data ?? [];
 
-  async function confirmarCancelacion() {
+  async function confirmarCancelacion(razon) {
     if (!aCancelar) return;
     const id = aCancelar.id_rev;
     setCancelandoId(id);
     try {
-      await reservasApi.cancelar(id);
+      await reservasApi.cancelar(id, razon);
       await recargar();
       mostrarToast('Reserva cancelada.', 'exito');
     } catch (err) {
@@ -116,6 +116,9 @@ export default function Reservas() {
         mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
         textoConfirmar="Cancelar reserva"
         textoCargando="Cancelando…"
+        pedirRazon
+        labelRazon="Motivo de la cancelación"
+        placeholderRazon="Ej: el docente no podrá asistir a esta tutoría"
         cargando={Boolean(cancelandoId)}
         onConfirmar={confirmarCancelacion}
         onCancelar={() => setACancelar(null)}

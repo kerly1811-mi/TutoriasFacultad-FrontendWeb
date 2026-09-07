@@ -34,6 +34,7 @@ export default function Tutorias() {
                 {formatearFecha(t.fecha)} · {formatearRango(t.hora_ini, t.hora_fin)}
               </span>
               <p className="font-display text-lg text-ink mt-1">{t.tema}</p>
+              {t.curso && <p className="text-sm text-celeste-dark font-medium">{t.curso}</p>}
               <p className="text-sm text-ink/70 mt-2">
                 {t.aula}
                 <span className="text-ink/40"> · {ETIQUETA_TIPO_ESPACIO[t.tipo] || t.tipo}</span>

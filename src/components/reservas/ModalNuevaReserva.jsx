@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useApiResource } from '../../hooks/useApiResource';
 import { disponibilidadApi } from '../../api/endpoints/disponibilidad';
 import { reservasApi } from '../../api/endpoints/reservas';
+import { cursosApi } from '../../api/endpoints/cursos';
 import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO, OPCIONES_BLOQUE, OPCIONES_TIPO_ESPACIO } from '../../lib/constantes';
 import { formatearFechaConDia, mensajeDeError } from '../../lib/formato';
 import { Alert, Badge, Button, Card, DataState, Input, Modal, Select, SkeletonCards, Textarea } from '../ui';
@@ -251,9 +253,17 @@ function IconoCambiar() {
 }
 
 function FormularioConfirmar({ espacio, fecha, horaIni, horaFin, onCancelar, onListo }) {
+  const { usuario } = useAuth();
   const [motivo, setMotivo] = useState('');
+  const [idCurso, setIdCurso] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
+
+  const cargarCursos = useCallback(() => cursosApi.listar(), []);
+  const { data: cursos } = useApiResource(cargarCursos, {
+    mensajeError: 'No se pudieron cargar tus cursos.',
+  });
+  const misCursos = (cursos ?? []).filter((c) => c.id_doc === usuario?.id);
 
   async function confirmar(e) {
     e.preventDefault();
@@ -266,6 +276,7 @@ function FormularioConfirmar({ espacio, fecha, horaIni, horaFin, onCancelar, onL
         hor_ini: horaIni,
         hor_fin: horaFin,
         motivo,
+        id_cur: idCurso || undefined,
       });
       onListo(`Reserva confirmada: ${espacio.nom_esp}, ${fecha} de ${horaIni} a ${horaFin}.`);
     } catch (err) {
@@ -284,6 +295,23 @@ function FormularioConfirmar({ espacio, fecha, horaIni, horaFin, onCancelar, onL
         onChange={(e) => setMotivo(e.target.value)}
         placeholder="Tutoría de Programación, paralelo A"
       />
+
+      {misCursos.length > 0 && (
+        <Select
+          label="Curso (opcional)"
+          hint="Si la eliges, solo los estudiantes matriculados en ese curso verán esta tutoría."
+          value={idCurso}
+          onChange={(e) => setIdCurso(e.target.value)}
+        >
+          <option value="">Sin curso específico</option>
+          {misCursos.map((c) => (
+            <option key={c.id_cur} value={c.id_cur}>
+              {c.nom_cur}
+            </option>
+          ))}
+        </Select>
+      )}
+
       {error && <Alert>{error}</Alert>}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="secondary" onClick={onCancelar}>
