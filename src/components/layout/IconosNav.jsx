@@ -58,11 +58,24 @@ const ICONOS = {
       <path d="M16 4.3a3.2 3.2 0 0 1 0 6.2M21 20c0-2.8-2-4.8-4.5-5.4" />
     </svg>
   ),
-  '/cursos': (
+  '/carreras': (
     <svg {...props}>
       <path d="M2 6.5 12 3l10 3.5-10 3.5-10-3.5Z" />
       <path d="M6 9.5V16c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V9.5" />
       <path d="M22 6.5V13" />
+    </svg>
+  ),
+  '/materias': (
+    <svg {...props}>
+      <path d="M4 19.5V5a2 2 0 0 1 2-2h13v15H6.5a2.5 2.5 0 0 0 0 5H19" />
+      <path d="M8 7h8" />
+    </svg>
+  ),
+  '/paralelos': (
+    <svg {...props}>
+      <circle cx="8" cy="8" r="4" />
+      <circle cx="16" cy="16" r="4" />
+      <path d="M11 8h6M8 11v6" />
     </svg>
   ),
   '/matriculas': (

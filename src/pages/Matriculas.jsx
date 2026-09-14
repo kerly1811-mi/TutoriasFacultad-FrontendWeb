@@ -4,7 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { useForm } from '../hooks/useForm';
 import { matriculasApi } from '../api/endpoints/matriculas';
-import { cursosApi } from '../api/endpoints/cursos';
+import { paralelosApi } from '../api/endpoints/paralelos';
 import { usuariosApi } from '../api/endpoints/usuarios';
 import { mensajeDeError } from '../lib/formato';
 import { Alert, Button, ConfirmDialog, Modal, PageHeader, Select, Table } from '../components/ui';
@@ -12,9 +12,15 @@ import { Alert, Button, ConfirmDialog, Modal, PageHeader, Select, Table } from '
 const COLUMNAS = [
   { clave: 'estudiante', titulo: 'Estudiante' },
   { clave: 'cedula', titulo: 'Cédula' },
-  { clave: 'curso', titulo: 'Curso' },
+  { clave: 'paralelo', titulo: 'Materia · Paralelo' },
+  { clave: 'nivel', titulo: 'Nivel / Carrera' },
   { clave: 'acciones', titulo: '', className: 'text-right' },
 ];
+
+function etiquetaParalelo(p) {
+  if (!p) return '—';
+  return `${p.materia?.nom_mat || ''} · Paralelo ${p.nom_par}`;
+}
 
 export default function Matriculas() {
   const { mostrarToast } = useToast();
@@ -23,21 +29,21 @@ export default function Matriculas() {
   const [eliminando, setEliminando] = useState(false);
 
   const cargar = useCallback(async () => {
-    const [matriculas, cursos, estudiantes] = await Promise.all([
+    const [matriculas, paralelos, estudiantes] = await Promise.all([
       matriculasApi.listar(),
-      cursosApi.listar(),
+      paralelosApi.listar(),
       usuariosApi.listar('ESTUDIANTE'),
     ]);
-    return { matriculas, cursos, estudiantes };
+    return { matriculas, paralelos, estudiantes };
   }, []);
   const { data, cargando, error, recargar } = useApiResource(cargar, {
     mensajeError: 'No se pudieron cargar las matrículas.',
   });
 
   const matriculas = data?.matriculas ?? [];
-  const cursos = data?.cursos ?? [];
+  const paralelos = data?.paralelos ?? [];
   const estudiantes = data?.estudiantes ?? [];
-  const puedeMatricular = cursos.length > 0 && estudiantes.length > 0;
+  const puedeMatricular = paralelos.length > 0 && estudiantes.length > 0;
 
   async function confirmarEliminar() {
     if (!aEliminar) return;
@@ -56,7 +62,7 @@ export default function Matriculas() {
 
   return (
     <Layout>
-      <PageHeader titulo="Matrículas" descripcion="Matricula estudiantes en un curso.">
+      <PageHeader titulo="Matrículas" descripcion="Matricula estudiantes en un paralelo.">
         <Button onClick={() => setModalAbierto(true)} disabled={!puedeMatricular}>
           Nueva matrícula
         </Button>
@@ -65,8 +71,8 @@ export default function Matriculas() {
       {!cargando && !puedeMatricular && (
         <div className="mt-4">
           <Alert>
-            {cursos.length === 0
-              ? 'No hay cursos registrados todavía. Crea uno en "Cursos" antes de matricular.'
+            {paralelos.length === 0
+              ? 'No hay paralelos registrados todavía. Crea uno en "Paralelos" antes de matricular.'
               : 'No hay estudiantes registrados todavía.'}
           </Alert>
         </div>
@@ -85,7 +91,10 @@ export default function Matriculas() {
                 {m.estudiante ? `${m.estudiante.nombres} ${m.estudiante.apellidos}` : '—'}
               </td>
               <td className="px-5 py-3 text-ink/70">{m.estudiante?.cedula || '—'}</td>
-              <td className="px-5 py-3">{m.curso?.nom_cur || '—'}</td>
+              <td className="px-5 py-3">{etiquetaParalelo(m.paralelo)}</td>
+              <td className="px-5 py-3 text-ink/70">
+                {m.paralelo?.nivel?.nom_niv} · {m.paralelo?.nivel?.carrera?.nom_car}
+              </td>
               <td className="px-5 py-3 text-right">
                 <button
                   onClick={() => setAEliminar(m)}
@@ -101,7 +110,7 @@ export default function Matriculas() {
 
       <Modal abierto={modalAbierto} onCerrar={() => setModalAbierto(false)} titulo="Nueva matrícula">
         <FormularioMatricula
-          cursos={cursos}
+          paralelos={paralelos}
           estudiantes={estudiantes}
           onCancelar={() => setModalAbierto(false)}
           onListo={() => {
@@ -116,7 +125,7 @@ export default function Matriculas() {
         titulo="Quitar matrícula"
         mensaje={
           aEliminar
-            ? `¿Quitar a "${aEliminar.estudiante?.nombres} ${aEliminar.estudiante?.apellidos}" del curso "${aEliminar.curso?.nom_cur}"?`
+            ? `¿Quitar a "${aEliminar.estudiante?.nombres} ${aEliminar.estudiante?.apellidos}" de "${etiquetaParalelo(aEliminar.paralelo)}"?`
             : ''
         }
         textoConfirmar="Quitar"
@@ -129,10 +138,10 @@ export default function Matriculas() {
   );
 }
 
-function FormularioMatricula({ cursos, estudiantes, onCancelar, onListo }) {
+function FormularioMatricula({ paralelos, estudiantes, onCancelar, onListo }) {
   const { valores, handleChange } = useForm({
     id_est: estudiantes[0] ? String(estudiantes[0].id_usr) : '',
-    id_cur: cursos[0] ? String(cursos[0].id_cur) : '',
+    id_par: paralelos[0] ? String(paralelos[0].id_par) : '',
   });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
@@ -142,7 +151,7 @@ function FormularioMatricula({ cursos, estudiantes, onCancelar, onListo }) {
     setEnviando(true);
     setError(null);
     try {
-      await matriculasApi.crear({ id_est: Number(valores.id_est), id_cur: Number(valores.id_cur) });
+      await matriculasApi.crear({ id_est: Number(valores.id_est), id_par: Number(valores.id_par) });
       onListo();
     } catch (err) {
       setError(mensajeDeError(err, 'No se pudo matricular al estudiante.'));
@@ -160,10 +169,10 @@ function FormularioMatricula({ cursos, estudiantes, onCancelar, onListo }) {
           </option>
         ))}
       </Select>
-      <Select label="Curso" name="id_cur" required value={valores.id_cur} onChange={handleChange}>
-        {cursos.map((c) => (
-          <option key={c.id_cur} value={c.id_cur}>
-            {c.nom_cur}
+      <Select label="Paralelo" name="id_par" required value={valores.id_par} onChange={handleChange}>
+        {paralelos.map((p) => (
+          <option key={p.id_par} value={p.id_par}>
+            {etiquetaParalelo(p)} · {p.nivel?.nom_niv} ({p.nivel?.carrera?.nom_car})
           </option>
         ))}
       </Select>

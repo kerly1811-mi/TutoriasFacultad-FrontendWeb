@@ -15,7 +15,7 @@ export const ETIQUETA_ROL = {
 export const DESCRIPCION_ROL = {
   ESTUDIANTE: 'Consulta qué tutorías están habilitadas y en qué aula.',
   DOCENTE: 'Reserva espacios para tus tutorías y revisa tus reservas.',
-  ADMINISTRADOR: 'Administra los usuarios, los cursos, las matrículas y los reportes.',
+  ADMINISTRADOR: 'Administra los usuarios, las carreras, materias, paralelos, matrículas y los reportes.',
   LABORATORISTA: 'Administra los espacios, carga los horarios de clases y controla la ocupación de las aulas.',
 };
 

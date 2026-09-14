@@ -19,7 +19,9 @@ export const NAV = [
 
   // Administrador
   { to: '/usuarios', etiqueta: 'Usuarios', roles: ['ADMINISTRADOR'] },
-  { to: '/cursos', etiqueta: 'Cursos', roles: ['ADMINISTRADOR'] },
+  { to: '/carreras', etiqueta: 'Carreras', roles: ['ADMINISTRADOR'] },
+  { to: '/materias', etiqueta: 'Materias', roles: ['ADMINISTRADOR'] },
+  { to: '/paralelos', etiqueta: 'Paralelos', roles: ['ADMINISTRADOR'] },
   { to: '/matriculas', etiqueta: 'Matrículas', roles: ['ADMINISTRADOR'] },
 
   // Compartidas
@@ -43,7 +45,9 @@ export const ACCESO_RUTA = {
   '/ocupacion': ['LABORATORISTA'],
   '/espacios': ['LABORATORISTA'],
   '/usuarios': ['ADMINISTRADOR'],
-  '/cursos': ['ADMINISTRADOR'],
+  '/carreras': ['ADMINISTRADOR'],
+  '/materias': ['ADMINISTRADOR'],
+  '/paralelos': ['ADMINISTRADOR'],
   '/matriculas': ['ADMINISTRADOR'],
   '/control-acceso': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
   '/solicitudes': ['DOCENTE', 'ESTUDIANTE'],

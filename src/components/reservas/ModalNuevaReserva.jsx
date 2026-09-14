@@ -3,12 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import { useApiResource } from '../../hooks/useApiResource';
 import { disponibilidadApi } from '../../api/endpoints/disponibilidad';
 import { reservasApi } from '../../api/endpoints/reservas';
-import { cursosApi } from '../../api/endpoints/cursos';
+import { paralelosApi } from '../../api/endpoints/paralelos';
 import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO, OPCIONES_BLOQUE, OPCIONES_TIPO_ESPACIO } from '../../lib/constantes';
 import { formatearFechaConDia, mensajeDeError } from '../../lib/formato';
-import { Alert, Badge, Button, Card, DataState, Input, Modal, Select, SkeletonCards, Textarea } from '../ui';
+import { Alert, Badge, Button, Card, DataState, Input, Modal, Select, SelectorHora, SkeletonCards, Textarea } from '../ui';
 
 const HOY = new Date().toISOString().slice(0, 10);
+const HORA_VALIDA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
  * Modal de búsqueda y reserva de espacios (fecha/horario -> aulas libres -> confirmar).
@@ -39,6 +40,9 @@ export default function ModalNuevaReserva({ abierto, onCerrar, onCreada }) {
     setSeleccionado(null);
     if (fecha < HOY) return setErrorForm('La fecha no puede ser anterior a hoy.');
     if (!horaIni || !horaFin) return setErrorForm('Indica la hora de inicio y de fin.');
+    if (!HORA_VALIDA.test(horaIni) || !HORA_VALIDA.test(horaFin)) {
+      return setErrorForm('La hora debe tener formato HH:MM, por ejemplo 09:30.');
+    }
     if (horaFin <= horaIni) return setErrorForm('La hora de fin debe ser posterior a la de inicio.');
     setBuscado(true);
     recargar();
@@ -87,20 +91,8 @@ export default function ModalNuevaReserva({ abierto, onCerrar, onCreada }) {
               onChange={(e) => setFecha(e.target.value)}
               className="w-40"
             />
-            <Input
-              label="Desde"
-              type="time"
-              value={horaIni}
-              onChange={(e) => setHoraIni(e.target.value)}
-              className="w-32"
-            />
-            <Input
-              label="Hasta"
-              type="time"
-              value={horaFin}
-              onChange={(e) => setHoraFin(e.target.value)}
-              className="w-32"
-            />
+            <SelectorHora label="Desde" value={horaIni} onChange={setHoraIni} className="w-32" />
+            <SelectorHora label="Hasta" value={horaFin} onChange={setHoraFin} className="w-32" />
             <Button type="submit" cargando={cargando} textoCargando="Buscando…">
               Buscar aulas
             </Button>
@@ -255,15 +247,14 @@ function IconoCambiar() {
 function FormularioConfirmar({ espacio, fecha, horaIni, horaFin, onCancelar, onListo }) {
   const { usuario } = useAuth();
   const [motivo, setMotivo] = useState('');
-  const [idCurso, setIdCurso] = useState('');
+  const [idParalelo, setIdParalelo] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
 
-  const cargarCursos = useCallback(() => cursosApi.listar(), []);
-  const { data: cursos } = useApiResource(cargarCursos, {
-    mensajeError: 'No se pudieron cargar tus cursos.',
+  const cargarParalelos = useCallback(() => paralelosApi.listar({ id_doc: usuario?.id }), [usuario?.id]);
+  const { data: misParalelos } = useApiResource(cargarParalelos, {
+    mensajeError: 'No se pudieron cargar tus paralelos.',
   });
-  const misCursos = (cursos ?? []).filter((c) => c.id_doc === usuario?.id);
 
   async function confirmar(e) {
     e.preventDefault();
@@ -276,7 +267,7 @@ function FormularioConfirmar({ espacio, fecha, horaIni, horaFin, onCancelar, onL
         hor_ini: horaIni,
         hor_fin: horaFin,
         motivo,
-        id_cur: idCurso || undefined,
+        id_par: idParalelo || undefined,
       });
       onListo(`Reserva confirmada: ${espacio.nom_esp}, ${fecha} de ${horaIni} a ${horaFin}.`);
     } catch (err) {
@@ -296,17 +287,17 @@ function FormularioConfirmar({ espacio, fecha, horaIni, horaFin, onCancelar, onL
         placeholder="Tutoría de Programación, paralelo A"
       />
 
-      {misCursos.length > 0 && (
+      {misParalelos?.length > 0 && (
         <Select
-          label="Curso (opcional)"
-          hint="Si la eliges, solo los estudiantes matriculados en ese curso verán esta tutoría."
-          value={idCurso}
-          onChange={(e) => setIdCurso(e.target.value)}
+          label="Paralelo (opcional)"
+          hint="Si lo eliges, solo los estudiantes matriculados en ese paralelo verán esta tutoría."
+          value={idParalelo}
+          onChange={(e) => setIdParalelo(e.target.value)}
         >
-          <option value="">Sin curso específico</option>
-          {misCursos.map((c) => (
-            <option key={c.id_cur} value={c.id_cur}>
-              {c.nom_cur}
+          <option value="">Sin paralelo específico</option>
+          {misParalelos.map((p) => (
+            <option key={p.id_par} value={p.id_par}>
+              {p.materia?.nom_mat} · Paralelo {p.nom_par} ({p.nivel?.nom_niv}, {p.nivel?.carrera?.nom_car})
             </option>
           ))}
         </Select>

@@ -13,7 +13,9 @@ import Horarios from './pages/Horarios';
 import Ocupacion from './pages/Ocupacion';
 import Espacios from './pages/Espacios';
 import Usuarios from './pages/Usuarios';
-import Cursos from './pages/Cursos';
+import Carreras from './pages/Carreras';
+import Materias from './pages/Materias';
+import Paralelos from './pages/Paralelos';
 import Matriculas from './pages/Matriculas';
 import ControlAcceso from './pages/ControlAcceso';
 import Solicitudes from './pages/Solicitudes';
@@ -30,7 +32,9 @@ const RUTAS_PRIVADAS = [
   { path: '/ocupacion', element: <Ocupacion /> },
   { path: '/espacios', element: <Espacios /> },
   { path: '/usuarios', element: <Usuarios /> },
-  { path: '/cursos', element: <Cursos /> },
+  { path: '/carreras', element: <Carreras /> },
+  { path: '/materias', element: <Materias /> },
+  { path: '/paralelos', element: <Paralelos /> },
   { path: '/matriculas', element: <Matriculas /> },
   { path: '/control-acceso', element: <ControlAcceso /> },
   { path: '/solicitudes', element: <Solicitudes /> },
