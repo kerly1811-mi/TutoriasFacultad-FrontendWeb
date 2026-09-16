@@ -8,7 +8,7 @@ import { Card } from '../components/ui';
 
 const DESCRIPCION_SECCION = {
   '/tutorias': 'Tutorías habilitadas: aula, hora y docente.',
-  '/reservas': 'Reserva un espacio y consulta tus reservas.',
+  '/reservas': 'Busca un horario libre y resérvalo al instante.',
   '/horarios': 'Carga el horario semanal de clases de cada aula.',
   '/ocupacion': 'Qué aulas están en clase, reservadas o libres.',
   '/espacios': 'Alta, edición y mantenimiento de aulas y laboratorios.',

@@ -9,7 +9,7 @@ export const NAV = [
   { to: '/tutorias', etiqueta: 'Cursos', roles: ['ESTUDIANTE'] },
 
   // Docente
-  { to: '/reservas', etiqueta: 'Mis reservas', roles: ['DOCENTE'] },
+  { to: '/reservas', etiqueta: 'Reservar un espacio', roles: ['DOCENTE'] },
 
   // Laboratorista
   { to: '/espacios', etiqueta: 'Espacios', roles: ['LABORATORISTA'] },

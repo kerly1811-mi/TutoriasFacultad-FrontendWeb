@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
-import ModalNuevaReserva from '../components/reservas/ModalNuevaReserva';
+import ReservarEspacio from './ReservarEspacio';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { reservasApi } from '../api/endpoints/reservas';
 import { ETIQUETA_ESTADO_RESERVA } from '../lib/constantes';
 import { formatearFecha, formatearRango, mensajeDeError } from '../lib/formato';
-import { Badge, Button, ConfirmDialog, PageHeader, Table } from '../components/ui';
+import { Badge, ConfirmDialog, PageHeader, Table } from '../components/ui';
 
 const COLUMNAS = [
   { clave: 'espacio', titulo: 'Espacio' },
@@ -19,21 +19,22 @@ const COLUMNAS = [
   { clave: 'acciones', titulo: '', className: 'text-right' },
 ];
 
+// Docente: página de reserva rápida (buscar + reservar). Ver ./ReservarEspacio.jsx
+// Administrador: tabla de todas las reservas registradas (sin cambios).
 export default function Reservas() {
   const { usuario } = useAuth();
   const { mostrarToast } = useToast();
   const esAdmin = usuario?.rol === 'ADMINISTRADOR';
   const [cancelandoId, setCancelandoId] = useState(null);
   const [aCancelar, setACancelar] = useState(null); // reserva pendiente de confirmar cancelación
-  const [modalAbierto, setModalAbierto] = useState(false);
 
-  const cargar = useCallback(() => reservasApi.listar({ mias: !esAdmin }), [esAdmin]);
+  const cargar = useCallback(() => reservasApi.listar({ mias: false }), []);
   const {
     data,
     cargando,
     error: errorCarga,
     recargar,
-  } = useApiResource(cargar, { mensajeError: 'No se pudieron cargar las reservas.' });
+  } = useApiResource(cargar, { mensajeError: 'No se pudieron cargar las reservas.', auto: esAdmin });
 
   const reservas = data ?? [];
 
@@ -53,14 +54,11 @@ export default function Reservas() {
     }
   }
 
+  if (!esAdmin) return <ReservarEspacio />;
+
   return (
     <Layout>
-      <PageHeader
-        titulo={esAdmin ? 'Reservas' : 'Mis reservas'}
-        descripcion={esAdmin ? 'Todas las reservas registradas.' : 'Espacios que has reservado para tus tutorías.'}
-      >
-        {!esAdmin && <Button onClick={() => setModalAbierto(true)}>Nueva reserva</Button>}
-      </PageHeader>
+      <PageHeader titulo="Reservas" descripcion="Todas las reservas registradas." />
 
       <div className="mt-6">
         <Table
@@ -68,7 +66,7 @@ export default function Reservas() {
           datos={reservas}
           cargando={cargando}
           error={errorCarga}
-          mensajeVacio={esAdmin ? 'No hay reservas.' : 'Todavía no has hecho ninguna reserva.'}
+          mensajeVacio="No hay reservas."
           renderFila={(r) => (
             <tr key={r.id_rev} className="border-b border-line last:border-0">
               <td className="px-5 py-3">{r.espacio?.nom_esp || '—'}</td>
@@ -98,17 +96,6 @@ export default function Reservas() {
           )}
         />
       </div>
-
-      {!esAdmin && (
-        <ModalNuevaReserva
-          abierto={modalAbierto}
-          onCerrar={() => setModalAbierto(false)}
-          onCreada={(msg) => {
-            mostrarToast(msg, 'exito');
-            recargar();
-          }}
-        />
-      )}
 
       <ConfirmDialog
         abierto={Boolean(aCancelar)}

@@ -78,6 +78,13 @@ export function horaEnMinutos(valor) {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
+// ¿"HH:MM" tiene formato válido y cae entre horaMin y horaMax (inclusive, en horas)?
+export function horaEnRango(valor, horaMin = 0, horaMax = 23) {
+  if (!/^\d{1,2}:\d{2}$/.test(valor || '')) return false;
+  const minutos = horaEnMinutos(valor);
+  return minutos >= horaMin * 60 && minutos <= horaMax * 60;
+}
+
 // "ESTUDIANTE" -> "Estudiante"
 export function capitalizar(texto = '') {
   if (!texto) return '';

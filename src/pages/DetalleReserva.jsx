@@ -11,7 +11,7 @@ import { documentosApi } from '../api/endpoints/documentos';
 import { ETIQUETA_ESTADO_RESERVA, ETIQUETA_TIPO_ESPACIO } from '../lib/constantes';
 import { PUEDE_COMPARTIR_DOCUMENTO, PUEDE_VER_ASISTENCIA, puede } from '../lib/permisos';
 import { formatearFecha, formatearHora, formatearRango, mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, Card, CodigoQR, ConfirmDialog, DataState, Input, Table } from '../components/ui';
+import { Alert, Badge, Button, Card, ConfirmDialog, DataState, Input, Table } from '../components/ui';
 
 const COLUMNAS_ASISTENCIA = [
   { clave: 'estudiante', titulo: 'Estudiante' },
@@ -120,8 +120,6 @@ export default function DetalleReserva() {
                 )}
               </Card>
 
-              {reserva.estado === 'RESERVADA' && <SeccionQR token={reserva.qr_token} />}
-
               {puedeVerAsistencia && <SeccionAsistencia idReserva={id} />}
 
               <SeccionDocumentos idReserva={id} puedeCompartir={puedeCompartir} />
@@ -153,20 +151,6 @@ function Dato({ titulo, valor }) {
       <dt className="text-xs uppercase tracking-wide text-ink/50">{titulo}</dt>
       <dd className="text-ink mt-1">{valor}</dd>
     </div>
-  );
-}
-
-function SeccionQR({ token }) {
-  return (
-    <section className="mt-10">
-      <h2 className="font-display text-xl text-ink">Código QR de la tutoría</h2>
-      <p className="text-sm text-ink/50 mt-1 mb-4">
-        Se generó al confirmar la reserva. Por ahora es solo informativo.
-      </p>
-      <Card padding="p-6" className="flex justify-center">
-        <CodigoQR valor={token} />
-      </Card>
-    </section>
   );
 }
 

@@ -6,8 +6,11 @@ import { horariosApi } from '../api/endpoints/horarios';
 import { espaciosApi } from '../api/endpoints/espacios';
 import { usuariosApi } from '../api/endpoints/usuarios';
 import { ETIQUETA_DIA, OPCIONES_DIA } from '../lib/constantes';
-import { mensajeDeError } from '../lib/formato';
-import { Alert, Button, Input, Modal, PageHeader, Select, Table } from '../components/ui';
+import { horaEnRango, mensajeDeError } from '../lib/formato';
+import { Alert, Button, Input, Modal, PageHeader, Select, SelectorHora, Table } from '../components/ui';
+
+const HORA_MIN = 7;
+const HORA_MAX = 20;
 
 const COLUMNAS = [
   { clave: 'aula', titulo: 'Aula' },
@@ -140,7 +143,7 @@ export default function Horarios() {
 }
 
 function FormularioHorario({ horario, espacios, docentes, onCancelar, onListo }) {
-  const { valores, handleChange } = useForm({
+  const { valores, handleChange, setCampo } = useForm({
     id_esp: horario?.id_esp ? String(horario.id_esp) : '',
     nombre_curso: horario?.nombre_curso || '',
     id_doc: horario?.id_doc ? String(horario.id_doc) : '',
@@ -154,6 +157,10 @@ function FormularioHorario({ horario, espacios, docentes, onCancelar, onListo })
   async function manejarEnvio(e) {
     e.preventDefault();
     setError(null);
+    if (!horaEnRango(valores.hora_ini, HORA_MIN, HORA_MAX) || !horaEnRango(valores.hora_fin, HORA_MIN, HORA_MAX)) {
+      setError(`La hora debe estar entre las ${HORA_MIN}:00 y las ${HORA_MAX}:00.`);
+      return;
+    }
     if (valores.hora_fin <= valores.hora_ini) {
       setError('La hora de fin debe ser posterior a la de inicio.');
       return;
@@ -213,8 +220,22 @@ function FormularioHorario({ horario, espacios, docentes, onCancelar, onListo })
         ))}
       </Select>
 
-      <Input label="Hora inicio" type="time" name="hora_ini" required value={valores.hora_ini} onChange={handleChange} />
-      <Input label="Hora fin" type="time" name="hora_fin" required value={valores.hora_fin} onChange={handleChange} />
+      <SelectorHora
+        label="Hora inicio"
+        required
+        value={valores.hora_ini}
+        onChange={(v) => setCampo('hora_ini', v)}
+        horaMin={HORA_MIN}
+        horaMax={HORA_MAX}
+      />
+      <SelectorHora
+        label="Hora fin"
+        required
+        value={valores.hora_fin}
+        onChange={(v) => setCampo('hora_fin', v)}
+        horaMin={HORA_MIN}
+        horaMax={HORA_MAX}
+      />
 
       {error && (
         <div className="col-span-2">
