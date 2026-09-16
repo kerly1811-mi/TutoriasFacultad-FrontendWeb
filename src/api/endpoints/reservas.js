@@ -7,8 +7,9 @@ export const reservasApi = {
   listar: ({ mias = false } = {}) =>
     api.get('/reservas', { params: mias ? { mias: 1 } : {} }).then((res) => res.data),
 
-  // POST /api/reservas (DOCENTE) -> { mensaje, reserva }
-  // datos = { id_esp, fecha: 'YYYY-MM-DD', hor_ini: 'HH:MM', hor_fin: 'HH:MM', motivo, id_par } (id_par obligatorio)
+  // POST /api/reservas (DOCENTE o LABORATORISTA) -> { mensaje, reserva }
+  // datos = { id_esp, fecha: 'YYYY-MM-DD', hor_ini: 'HH:MM', hor_fin: 'HH:MM', motivo, id_par }
+  // DOCENTE: id_par obligatorio (paralelo propio). LABORATORISTA: sin id_par, motivo obligatorio.
   // Puede responder 409 si el aula ya está ocupada en esa franja.
   crear: (datos) => api.post('/reservas', datos).then((res) => res.data),
 
