@@ -45,6 +45,13 @@ const ICONOS = {
       <path d="M8 13h2M14 13h2M8 17h2M14 17h2" />
     </svg>
   ),
+  '/mis-horarios': (
+    <svg {...props}>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18M8 3v3M16 3v3" />
+      <path d="M8 13h2M14 13h2M8 17h2M14 17h2" />
+    </svg>
+  ),
   '/ocupacion': (
     <svg {...props}>
       <circle cx="12" cy="12" r="9" />
@@ -69,6 +76,12 @@ const ICONOS = {
     <svg {...props}>
       <path d="M4 19.5V5a2 2 0 0 1 2-2h13v15H6.5a2.5 2.5 0 0 0 0 5H19" />
       <path d="M8 7h8" />
+    </svg>
+  ),
+  '/cursos': (
+    <svg {...props}>
+      <path d="M4 19.5V5a2 2 0 0 1 2-2h13v15H6.5a2.5 2.5 0 0 0 0 5H19" />
+      <path d="M8 7h8M8 11h5" />
     </svg>
   ),
   '/paralelos': (

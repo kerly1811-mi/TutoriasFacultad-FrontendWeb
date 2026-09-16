@@ -19,6 +19,7 @@ const DESCRIPCION_SECCION = {
   '/matriculas': 'Matricula estudiantes en un paralelo.',
   '/control-acceso': 'Asistencia registrada en cada tutoría.',
   '/solicitudes': 'Solicitudes de reserva entre estudiantes y docentes.',
+  '/mis-horarios': 'Horario semanal de clases de tus cursos.',
   '/mis-tutorias': 'Documentos y asistencia de tus tutorías.',
   '/reportes': 'Ocupación de espacios y reservas por docente.',
 };
@@ -27,7 +28,9 @@ export default function Dashboard() {
   const { usuario } = useAuth();
   const rol = usuario?.rol;
 
-  const secciones = NAV.filter((item) => item.to !== '/dashboard' && puede(item.roles, rol));
+  const secciones = NAV.filter((item) => item.to !== '/dashboard' && puede(item.roles, rol)).flatMap((item) =>
+    item.submenu ? item.submenu.map((s) => ({ ...s, roles: item.roles })) : [item]
+  );
 
   return (
     <Layout>

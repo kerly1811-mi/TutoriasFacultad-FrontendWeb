@@ -6,7 +6,26 @@ import { useForm } from '../hooks/useForm';
 import { carrerasApi } from '../api/endpoints/carreras';
 import { nivelesApi } from '../api/endpoints/niveles';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Button, Card, ConfirmDialog, DataState, Input, Modal, PageHeader, SkeletonCards } from '../components/ui';
+import { Alert, Badge, Button, Card, ConfirmDialog, DataState, Input, Modal, PageHeader, SkeletonCards } from '../components/ui';
+
+function IconoCarrera() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-5 h-5"
+    >
+      <path d="M2 8.5 12 4l10 4.5-10 4.5-10-4.5Z" />
+      <path d="M6 10.5V15c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V9.5" />
+      <path d="M22 8.5V13" />
+    </svg>
+  );
+}
 
 export default function Carreras() {
   const { mostrarToast } = useToast();
@@ -61,7 +80,11 @@ export default function Carreras() {
         <Button onClick={() => setModalCarrera(true)}>Nueva carrera</Button>
       </PageHeader>
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {!cargando && carreras.length > 0 && (
+        <p className="mt-4 text-sm text-ink/50">{carreras.length} carrera(s) registradas.</p>
+      )}
+
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <DataState
           cargando={cargando}
           error={error}
@@ -72,7 +95,12 @@ export default function Carreras() {
           {carreras.map((car) => (
             <Card key={car.id_car}>
               <div className="flex items-start justify-between gap-2">
-                <p className="font-display text-lg text-ink">{car.nom_car}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="flex items-center justify-center w-9 h-9 rounded-md bg-celeste/10 text-celeste-dark shrink-0">
+                    <IconoCarrera />
+                  </span>
+                  <p className="font-display text-lg text-ink truncate">{car.nom_car}</p>
+                </div>
                 <button
                   onClick={() => setAEliminarCarrera(car)}
                   className="text-sm text-danger font-medium hover:underline shrink-0"
@@ -82,7 +110,12 @@ export default function Carreras() {
               </div>
 
               <div className="mt-3 pt-3 border-t border-line">
-                <p className="text-xs uppercase tracking-wide text-ink/40 mb-2">Niveles</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs uppercase tracking-wide text-ink/40">Niveles</p>
+                  {car.niveles.length > 0 && (
+                    <Badge className="bg-line text-ink/60">{car.niveles.length}</Badge>
+                  )}
+                </div>
                 {car.niveles.length === 0 ? (
                   <p className="text-sm text-ink/50">Sin niveles todavía.</p>
                 ) : (

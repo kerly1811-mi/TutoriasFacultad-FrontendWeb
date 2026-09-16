@@ -1,19 +1,33 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { useForm } from '../hooks/useForm';
 import { materiasApi } from '../api/endpoints/materias';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Button, ConfirmDialog, Input, Modal, PageHeader, Table } from '../components/ui';
+import { Alert, Button, Card, ConfirmDialog, DataState, Input, Modal, PageHeader, SkeletonCards } from '../components/ui';
 
-const COLUMNAS = [
-  { clave: 'materia', titulo: 'Materia' },
-  { clave: 'acciones', titulo: '', className: 'text-right' },
-];
+function IconoMateria() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="w-5 h-5"
+    >
+      <path d="M4 19.5V5a2 2 0 0 1 2-2h13v15H6.5a2.5 2.5 0 0 0 0 5H19" />
+      <path d="M8 7h8M8 11h5" />
+    </svg>
+  );
+}
 
 export default function Materias() {
   const { mostrarToast } = useToast();
+  const [busqueda, setBusqueda] = useState('');
   const [modal, setModal] = useState(null); // null | { materia? }
   const [aEliminar, setAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
@@ -23,6 +37,12 @@ export default function Materias() {
     mensajeError: 'No se pudieron cargar las materias.',
   });
   const materias = data ?? [];
+
+  const filtradas = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return materias;
+    return materias.filter((m) => m.nom_mat.toLowerCase().includes(q));
+  }, [materias, busqueda]);
 
   async function confirmarEliminar() {
     if (!aEliminar) return;
@@ -48,17 +68,33 @@ export default function Materias() {
         <Button onClick={() => setModal({})}>Nueva materia</Button>
       </PageHeader>
 
-      <div className="mt-6">
-        <Table
-          columnas={COLUMNAS}
-          datos={materias}
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <Input
+          placeholder="Buscar materia…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="w-64"
+        />
+        <p className="text-sm text-ink/50 shrink-0">{materias.length} materia(s) en total</p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <DataState
           cargando={cargando}
           error={error}
-          mensajeVacio="Aún no hay materias registradas."
-          renderFila={(m) => (
-            <tr key={m.id_mat} className="border-b border-line last:border-0">
-              <td className="px-5 py-3 font-medium text-ink">{m.nom_mat}</td>
-              <td className="px-5 py-3 text-right whitespace-nowrap">
+          vacio={filtradas.length === 0}
+          skeleton={<SkeletonCards count={6} />}
+          mensajeVacio={busqueda ? 'Ninguna materia coincide con la búsqueda.' : 'Aún no hay materias registradas.'}
+        >
+          {filtradas.map((m) => (
+            <Card key={m.id_mat} padding="p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex items-center justify-center w-9 h-9 rounded-md bg-celeste/10 text-celeste-dark shrink-0">
+                  <IconoMateria />
+                </span>
+                <p className="font-display text-base text-ink mt-1.5 min-w-0 flex-1 truncate">{m.nom_mat}</p>
+              </div>
+              <div className="mt-3 pt-3 border-t border-line flex justify-end gap-4">
                 <button
                   onClick={() => setModal({ materia: m })}
                   className="text-sm text-azul font-medium hover:underline"
@@ -67,14 +103,14 @@ export default function Materias() {
                 </button>
                 <button
                   onClick={() => setAEliminar(m)}
-                  className="ml-4 text-sm text-danger font-medium hover:underline"
+                  className="text-sm text-danger font-medium hover:underline"
                 >
                   Eliminar
                 </button>
-              </td>
-            </tr>
-          )}
-        />
+              </div>
+            </Card>
+          ))}
+        </DataState>
       </div>
 
       <Modal abierto={Boolean(modal)} onCerrar={() => setModal(null)} titulo={modal?.materia ? 'Editar materia' : 'Nueva materia'}>

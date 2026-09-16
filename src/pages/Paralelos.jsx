@@ -8,7 +8,7 @@ import { materiasApi } from '../api/endpoints/materias';
 import { carrerasApi } from '../api/endpoints/carreras';
 import { usuariosApi } from '../api/endpoints/usuarios';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Button, ConfirmDialog, Input, Modal, PageHeader, Select, Table } from '../components/ui';
+import { Alert, Badge, Button, ConfirmDialog, Input, Modal, PageHeader, Select, Table } from '../components/ui';
 
 const COLUMNAS = [
   { clave: 'materia', titulo: 'Materia · Paralelo' },
@@ -16,6 +16,16 @@ const COLUMNAS = [
   { clave: 'docente', titulo: 'Docente' },
   { clave: 'acciones', titulo: '', className: 'text-right' },
 ];
+
+function inicialesDe(nombre) {
+  if (!nombre) return '?';
+  return nombre
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join('');
+}
 
 export default function Paralelos() {
   const { mostrarToast } = useToast();
@@ -77,7 +87,11 @@ export default function Paralelos() {
         </div>
       )}
 
-      <div className="mt-6">
+      {!cargando && paralelos.length > 0 && (
+        <p className="mt-4 text-sm text-ink/50">{paralelos.length} paralelo(s) registrados en total.</p>
+      )}
+
+      <div className="mt-4">
         <Table
           columnas={COLUMNAS}
           datos={paralelos}
@@ -86,14 +100,27 @@ export default function Paralelos() {
           mensajeVacio="Aún no hay paralelos registrados."
           renderFila={(p) => (
             <tr key={p.id_par} className="border-b border-line last:border-0">
-              <td className="px-5 py-3 font-medium text-ink">
-                {p.materia?.nom_mat} · Paralelo {p.nom_par}
+              <td className="px-5 py-3">
+                <p className="font-medium text-ink">{p.materia?.nom_mat}</p>
+                <Badge className="mt-1 bg-celeste/10 text-celeste-dark">Paralelo {p.nom_par}</Badge>
               </td>
               <td className="px-5 py-3 text-ink/70">
-                {p.nivel?.nom_niv} · {p.nivel?.carrera?.nom_car}
+                <p className="text-ink">{p.nivel?.nom_niv}</p>
+                <p className="text-xs text-ink/50">{p.nivel?.carrera?.nom_car}</p>
               </td>
-              <td className="px-5 py-3 text-ink/70">
-                {p.docente ? `${p.docente.nombres} ${p.docente.apellidos}` : '—'}
+              <td className="px-5 py-3">
+                {p.docente ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-azul/10 text-azul-dark text-xs font-semibold shrink-0">
+                      {inicialesDe(`${p.docente.nombres} ${p.docente.apellidos}`)}
+                    </span>
+                    <span className="text-ink/70">
+                      {p.docente.nombres} {p.docente.apellidos}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-ink/50">—</span>
+                )}
               </td>
               <td className="px-5 py-3 text-right whitespace-nowrap">
                 <button

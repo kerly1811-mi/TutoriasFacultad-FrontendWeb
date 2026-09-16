@@ -7,6 +7,8 @@ export const NAV = [
 
   // Estudiante
   { to: '/tutorias', etiqueta: 'Cursos', roles: ['ESTUDIANTE'] },
+  { to: '/mis-horarios', etiqueta: 'Horarios', roles: ['ESTUDIANTE'] },
+  { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
 
   // Docente
   { to: '/reservas', etiqueta: 'Reservar un espacio', roles: ['DOCENTE'] },
@@ -14,24 +16,29 @@ export const NAV = [
   // Laboratorista
   { to: '/espacios', etiqueta: 'Espacios', roles: ['LABORATORISTA'] },
   { to: '/horarios', etiqueta: 'Horarios', roles: ['LABORATORISTA'] },
-  { to: '/control-acceso', etiqueta: 'Control de acceso', roles: ['LABORATORISTA'] },
   { to: '/ocupacion', etiqueta: 'Ocupación', roles: ['LABORATORISTA'] },
 
   // Administrador
   { to: '/usuarios', etiqueta: 'Usuarios', roles: ['ADMINISTRADOR'] },
-  { to: '/carreras', etiqueta: 'Carreras', roles: ['ADMINISTRADOR'] },
-  { to: '/materias', etiqueta: 'Materias', roles: ['ADMINISTRADOR'] },
-  { to: '/paralelos', etiqueta: 'Paralelos', roles: ['ADMINISTRADOR'] },
+  {
+    to: '/cursos',
+    etiqueta: 'Cursos',
+    roles: ['ADMINISTRADOR'],
+    submenu: [
+      { to: '/carreras', etiqueta: 'Carreras' },
+      { to: '/materias', etiqueta: 'Materias' },
+      { to: '/paralelos', etiqueta: 'Paralelos' },
+    ],
+  },
   { to: '/matriculas', etiqueta: 'Matrículas', roles: ['ADMINISTRADOR'] },
 
   // Compartidas
-  { to: '/control-acceso', etiqueta: 'Control de acceso', roles: ['DOCENTE', 'ADMINISTRADOR'] },
+  { to: '/control-acceso', etiqueta: 'Control de acceso', roles: ['DOCENTE'] },
   {
     to: '/solicitudes',
     etiqueta: (rol) => (rol === 'DOCENTE' ? 'Mis solicitudes' : 'Solicitudes'),
     roles: ['DOCENTE', 'ESTUDIANTE'],
   },
-  { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
   { to: '/reportes', etiqueta: 'Reportes', roles: ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'] },
 ];
 
@@ -49,8 +56,9 @@ export const ACCESO_RUTA = {
   '/materias': ['ADMINISTRADOR'],
   '/paralelos': ['ADMINISTRADOR'],
   '/matriculas': ['ADMINISTRADOR'],
-  '/control-acceso': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
+  '/control-acceso': ['DOCENTE'],
   '/solicitudes': ['DOCENTE', 'ESTUDIANTE'],
+  '/mis-horarios': ['ESTUDIANTE'],
   '/mis-tutorias': ['ESTUDIANTE'],
   '/reportes': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
 };

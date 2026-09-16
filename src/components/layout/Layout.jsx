@@ -29,6 +29,58 @@ function ItemNav({ to, icono, colapsado, children, onNavegar }) {
   );
 }
 
+function IconoFlechaGrupo() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 transition-transform">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+function ItemGrupoNav({ item, icono, colapsado, activo, abierto, onAlternar, onNavegar }) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onAlternar}
+        title={colapsado ? item.etiqueta : undefined}
+        className={`w-full flex items-center gap-3 rounded-md px-4 py-2.5 text-sm transition-colors ${
+          colapsado ? 'justify-center px-0' : ''
+        } ${activo ? 'text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'}`}
+      >
+        <span className="shrink-0">{icono}</span>
+        {!colapsado && (
+          <>
+            <span className="truncate flex-1 text-left">{item.etiqueta}</span>
+            <span className={abierto ? 'rotate-90' : ''}>
+              <IconoFlechaGrupo />
+            </span>
+          </>
+        )}
+      </button>
+
+      {!colapsado && abierto && (
+        <div className="mt-0.5 ml-4 pl-3 border-l border-white/10 space-y-0.5">
+          {item.submenu.map((sub) => (
+            <NavLink
+              key={sub.to}
+              to={sub.to}
+              onClick={onNavegar}
+              className={({ isActive }) =>
+                `block rounded-md px-3 py-2 text-sm transition-colors ${
+                  isActive ? 'bg-white/10 text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'
+                }`
+              }
+            >
+              {sub.etiqueta}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function IconoMenu({ abierto }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -102,6 +154,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [colapsado, setColapsado] = useState(() => {
     try {
       return localStorage.getItem(CLAVE_COLAPSADO) === '1';
@@ -139,11 +192,24 @@ export default function Layout({ children }) {
 
   const itemsVisibles = NAV.filter((item) => puede(item.roles, usuario?.rol));
   const seccionActual = itemsVisibles.find((item) => item.to === location.pathname);
+  const subseccionActual = itemsVisibles
+    .filter((item) => item.submenu)
+    .flatMap((item) => item.submenu)
+    .find((sub) => sub.to === location.pathname);
   const etiquetaSeccion = seccionActual
     ? typeof seccionActual.etiqueta === 'function'
       ? seccionActual.etiqueta(usuario?.rol)
       : seccionActual.etiqueta
-    : 'Panel';
+    : subseccionActual?.etiqueta || 'Panel';
+
+  function grupoAbierto(item) {
+    if (gruposAbiertos[item.to] !== undefined) return gruposAbiertos[item.to];
+    return item.submenu.some((s) => s.to === location.pathname);
+  }
+
+  function alternarGrupo(item) {
+    setGruposAbiertos((prev) => ({ ...prev, [item.to]: !grupoAbierto(item) }));
+  }
 
   return (
     <div className="min-h-screen bg-paper lg:flex">
@@ -221,17 +287,30 @@ export default function Layout({ children }) {
           </div>
 
           <nav className={`p-4 space-y-1 ${colapsado ? 'lg:px-3' : ''}`}>
-            {itemsVisibles.map((item) => (
-              <ItemNav
-                key={item.to}
-                to={item.to}
-                icono={<IconoNav ruta={item.to} />}
-                colapsado={colapsado}
-                onNavegar={() => setMenuAbierto(false)}
-              >
-                {typeof item.etiqueta === 'function' ? item.etiqueta(usuario?.rol) : item.etiqueta}
-              </ItemNav>
-            ))}
+            {itemsVisibles.map((item) =>
+              item.submenu ? (
+                <ItemGrupoNav
+                  key={item.to}
+                  item={item}
+                  icono={<IconoNav ruta={item.to} />}
+                  colapsado={colapsado}
+                  activo={item.submenu.some((s) => s.to === location.pathname)}
+                  abierto={grupoAbierto(item)}
+                  onAlternar={() => alternarGrupo(item)}
+                  onNavegar={() => setMenuAbierto(false)}
+                />
+              ) : (
+                <ItemNav
+                  key={item.to}
+                  to={item.to}
+                  icono={<IconoNav ruta={item.to} />}
+                  colapsado={colapsado}
+                  onNavegar={() => setMenuAbierto(false)}
+                >
+                  {typeof item.etiqueta === 'function' ? item.etiqueta(usuario?.rol) : item.etiqueta}
+                </ItemNav>
+              )
+            )}
           </nav>
         </div>
 
