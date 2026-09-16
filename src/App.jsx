@@ -19,6 +19,7 @@ import Paralelos from './pages/Paralelos';
 import Matriculas from './pages/Matriculas';
 import ControlAcceso from './pages/ControlAcceso';
 import Solicitudes from './pages/Solicitudes';
+import MisHorarios from './pages/MisHorarios';
 import MisTutorias from './pages/MisTutorias';
 import Reportes from './pages/Reportes';
 
@@ -38,6 +39,7 @@ const RUTAS_PRIVADAS = [
   { path: '/matriculas', element: <Matriculas /> },
   { path: '/control-acceso', element: <ControlAcceso /> },
   { path: '/solicitudes', element: <Solicitudes /> },
+  { path: '/mis-horarios', element: <MisHorarios /> },
   { path: '/mis-tutorias', element: <MisTutorias /> },
   { path: '/reportes', element: <Reportes /> },
 ];

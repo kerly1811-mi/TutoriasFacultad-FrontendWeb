@@ -95,3 +95,31 @@ export function capitalizar(texto = '') {
 export function mensajeDeError(err, respaldo = 'Ocurrió un error inesperado.') {
   return err?.response?.data?.error || respaldo;
 }
+
+// "YYYY-MM-DD" en hora LOCAL del navegador (nunca toISOString: en Ecuador,
+// UTC-5, eso adelanta la fecha después de las ~19:00 hora local).
+export function fechaISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+// Lunes a viernes de la semana actual (fechas reales, en hora local).
+export function semanaActual() {
+  const hoy = new Date();
+  const diaJs = hoy.getDay(); // 0 domingo ... 6 sábado
+  const offsetLunes = diaJs === 0 ? -6 : 1 - diaJs;
+  const lunes = new Date(hoy);
+  lunes.setDate(hoy.getDate() + offsetLunes);
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    return d;
+  });
+}
+
+// ¿La fecha (Date) dada es la de hoy (hora local)?
+export function esHoy(d) {
+  return fechaISO(d) === fechaISO(new Date());
+}

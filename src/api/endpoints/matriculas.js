@@ -1,8 +1,8 @@
 import api from '../client';
 
-// Wrappers sobre /api/matriculas (solo ADMINISTRADOR).
+// Wrappers sobre /api/matriculas. ADMIN ve todas; ESTUDIANTE solo las suyas.
 export const matriculasApi = {
-  // GET /api/matriculas -> Matricula[] (incluye `estudiante` y `paralelo` con materia/nivel/carrera)
+  // GET /api/matriculas -> Matricula[] (incluye `estudiante` y `paralelo` con materia/nivel/carrera/docente)
   listar: () => api.get('/matriculas').then((res) => res.data),
 
   // POST /api/matriculas -> { mensaje, matricula }
