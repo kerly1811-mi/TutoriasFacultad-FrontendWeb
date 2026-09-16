@@ -2,7 +2,8 @@ import api from '../client';
 
 // GET /api/disponibilidad?fecha=YYYY-MM-DD&hora_ini=HH:MM&hora_fin=HH:MM
 // -> { fecha, dia_semana, con_franja, espacios: [{ id_esp, nom_esp, tipo, capacidad,
-//      bloque, piso, libre, ocupaciones: [{ tipo:'CLASE'|'RESERVA', etiqueta, hora_ini, hora_fin }] }] }
+//      bloque, piso, libre, ocupaciones: [{ tipo:'CLASE'|'RESERVA', id_rev?, etiqueta, hora_ini, hora_fin }] }] }
+// id_rev solo viene en ocupaciones tipo RESERVA (permite cancelarla desde reservasApi.cancelar).
 export const disponibilidadApi = {
   consultar: ({ fecha, horaIni, horaFin }) =>
     api

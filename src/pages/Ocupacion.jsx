@@ -2,18 +2,42 @@ import { useCallback, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useApiResource } from '../hooks/useApiResource';
 import { disponibilidadApi } from '../api/endpoints/disponibilidad';
+import { reservasApi } from '../api/endpoints/reservas';
+import { useToast } from '../context/ToastContext';
 import { ETIQUETA_DIA, ETIQUETA_TIPO_ESPACIO } from '../lib/constantes';
-import { Badge, Card, DataState, Input, PageHeader, SkeletonCards } from '../components/ui';
+import { mensajeDeError } from '../lib/formato';
+import { Badge, Card, ConfirmDialog, DataState, Input, PageHeader, SkeletonCards } from '../components/ui';
 
-const HOY = new Date().toISOString().slice(0, 10);
+function fechaLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function Ocupacion() {
-  const [fecha, setFecha] = useState(HOY);
+  const [fecha, setFecha] = useState(fechaLocalISO);
+  const [aCancelar, setACancelar] = useState(null); // null | id_rev
+  const [cancelando, setCancelando] = useState(false);
+  const { mostrarToast } = useToast();
 
   const cargar = useCallback(() => disponibilidadApi.consultar({ fecha }), [fecha]);
-  const { data, cargando, error } = useApiResource(cargar, {
+  const { data, cargando, error, recargar } = useApiResource(cargar, {
     mensajeError: 'No se pudo cargar la ocupación.',
   });
+
+  async function confirmarCancelacion(razon) {
+    if (!aCancelar) return;
+    setCancelando(true);
+    try {
+      await reservasApi.cancelar(aCancelar, razon);
+      await recargar();
+      mostrarToast('Reserva cancelada.', 'exito');
+    } catch (err) {
+      mostrarToast(mensajeDeError(err, 'No se pudo cancelar la reserva.'), 'error');
+    } finally {
+      setCancelando(false);
+      setACancelar(null);
+    }
+  }
 
   const espacios = data?.espacios ?? [];
 
@@ -68,18 +92,31 @@ export default function Ocupacion() {
               {esp.ocupaciones.length > 0 && (
                 <ul className="mt-3 pt-3 border-t border-line space-y-1.5">
                   {esp.ocupaciones.map((o, i) => (
-                    <li key={`${esp.id_esp}-${i}`} className="text-sm">
-                      <span className="text-ink/70">
-                        {o.hora_ini}–{o.hora_fin}
-                      </span>{' '}
-                      <span
-                        className={
-                          o.tipo === 'CLASE' ? 'text-celeste-dark font-medium' : 'text-azul-dark font-medium'
-                        }
-                      >
-                        {o.tipo === 'CLASE' ? 'Clase' : 'Reserva'}
-                      </span>{' '}
-                      <span className="text-ink/50">· {o.etiqueta}</span>
+                    <li key={`${esp.id_esp}-${i}`} className="flex items-center justify-between gap-2 text-sm">
+                      <span>
+                        <span className="text-ink/70">
+                          {o.hora_ini}–{o.hora_fin}
+                        </span>{' '}
+                        <span
+                          className={
+                            o.tipo === 'CLASE' ? 'text-celeste-dark font-medium' : 'text-azul-dark font-medium'
+                          }
+                        >
+                          {o.tipo === 'CLASE' ? 'Clase' : 'Reserva'}
+                        </span>{' '}
+                        <span className="text-ink/50">· {o.etiqueta}</span>
+                      </span>
+                      {o.tipo === 'RESERVA' && (
+                        <button
+                          type="button"
+                          onClick={() => setACancelar(o.id_rev)}
+                          title="Cancelar reserva"
+                          aria-label="Cancelar reserva"
+                          className="shrink-0 text-ink/30 hover:text-danger transition-colors"
+                        >
+                          <IconoCancelar />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -88,6 +125,29 @@ export default function Ocupacion() {
           ))}
         </DataState>
       </div>
+
+      <ConfirmDialog
+        abierto={Boolean(aCancelar)}
+        titulo="Cancelar reserva"
+        mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
+        textoConfirmar="Cancelar reserva"
+        textoCargando="Cancelando…"
+        pedirRazon
+        labelRazon="Motivo de la cancelación"
+        placeholderRazon="Ej: mantenimiento urgente del aula"
+        cargando={cancelando}
+        onConfirmar={confirmarCancelacion}
+        onCancelar={() => setACancelar(null)}
+      />
     </Layout>
+  );
+}
+
+function IconoCancelar() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9.5 9.5 5 5m0-5-5 5" />
+    </svg>
   );
 }
