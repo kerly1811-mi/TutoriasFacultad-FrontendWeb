@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
@@ -7,7 +7,15 @@ import { matriculasApi } from '../api/endpoints/matriculas';
 import { paralelosApi } from '../api/endpoints/paralelos';
 import { usuariosApi } from '../api/endpoints/usuarios';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Button, ConfirmDialog, Modal, PageHeader, Select, Table } from '../components/ui';
+import { Alert, Badge, Button, ConfirmDialog, Input, Modal, PageHeader, Select, Table } from '../components/ui';
+
+const OPCIONES_MIN = [
+  { value: '0', label: 'Cualquier cantidad' },
+  { value: '1', label: '1 o más estudiantes' },
+  { value: '5', label: '5 o más estudiantes' },
+  { value: '10', label: '10 o más estudiantes' },
+  { value: '20', label: '20 o más estudiantes' },
+];
 
 const COLUMNAS = [
   { clave: 'estudiante', titulo: 'Estudiante' },
@@ -27,6 +35,8 @@ export default function Matriculas() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [aEliminar, setAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [minEstudiantes, setMinEstudiantes] = useState('0');
 
   const cargar = useCallback(async () => {
     const [matriculas, paralelos, estudiantes] = await Promise.all([
@@ -44,6 +54,28 @@ export default function Matriculas() {
   const paralelos = data?.paralelos ?? [];
   const estudiantes = data?.estudiantes ?? [];
   const puedeMatricular = paralelos.length > 0 && estudiantes.length > 0;
+
+  // Cantidad de estudiantes matriculados por paralelo, para el filtro y el badge de la tabla.
+  const conteoPorParalelo = useMemo(() => {
+    const mapa = new Map();
+    matriculas.forEach((m) => {
+      const id = m.paralelo?.id_par;
+      if (id) mapa.set(id, (mapa.get(id) || 0) + 1);
+    });
+    return mapa;
+  }, [matriculas]);
+
+  const matriculasFiltradas = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    const minimo = Number(minEstudiantes);
+    return matriculas.filter((m) => {
+      const cantidad = conteoPorParalelo.get(m.paralelo?.id_par) || 0;
+      if (cantidad < minimo) return false;
+      if (!q) return true;
+      const texto = `${m.estudiante?.nombres || ''} ${m.estudiante?.apellidos || ''} ${m.estudiante?.cedula || ''} ${etiquetaParalelo(m.paralelo)}`.toLowerCase();
+      return texto.includes(q);
+    });
+  }, [matriculas, busqueda, minEstudiantes, conteoPorParalelo]);
 
   async function confirmarEliminar() {
     if (!aEliminar) return;
@@ -78,20 +110,45 @@ export default function Matriculas() {
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-end gap-3">
+        <Input
+          label="Buscar"
+          placeholder="Nombre, cédula o curso…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="w-64"
+        />
+        <Select
+          label="Estudiantes por curso"
+          value={minEstudiantes}
+          onChange={(e) => setMinEstudiantes(e.target.value)}
+          options={OPCIONES_MIN}
+          className="w-52"
+        />
+        <p className="text-sm text-ink/50 pb-2">{matriculasFiltradas.length} matrícula(s)</p>
+      </div>
+
+      <div className="mt-4">
         <Table
           columnas={COLUMNAS}
-          datos={matriculas}
+          datos={matriculasFiltradas}
           cargando={cargando}
           error={error}
-          mensajeVacio="Aún no hay matrículas registradas."
+          mensajeVacio="Ninguna matrícula coincide con los filtros."
           renderFila={(m) => (
             <tr key={m.id_matricula} className="border-b border-line last:border-0">
               <td className="px-5 py-3">
                 {m.estudiante ? `${m.estudiante.nombres} ${m.estudiante.apellidos}` : '—'}
               </td>
               <td className="px-5 py-3 text-ink/70">{m.estudiante?.cedula || '—'}</td>
-              <td className="px-5 py-3">{etiquetaParalelo(m.paralelo)}</td>
+              <td className="px-5 py-3">
+                <span className="inline-flex items-center gap-2">
+                  {etiquetaParalelo(m.paralelo)}
+                  <Badge className="bg-line text-ink/60 shrink-0">
+                    {conteoPorParalelo.get(m.paralelo?.id_par) || 0}
+                  </Badge>
+                </span>
+              </td>
               <td className="px-5 py-3 text-ink/70">
                 {m.paralelo?.nivel?.nom_niv} · {m.paralelo?.nivel?.carrera?.nom_car}
               </td>
