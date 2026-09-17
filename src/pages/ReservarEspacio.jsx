@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -7,7 +8,7 @@ import { disponibilidadApi } from '../api/endpoints/disponibilidad';
 import { reservasApi } from '../api/endpoints/reservas';
 import { paralelosApi } from '../api/endpoints/paralelos';
 import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO, OPCIONES_BLOQUE, OPCIONES_TIPO_ESPACIO } from '../lib/constantes';
-import { horaEnMinutos, horaEnRango, mensajeDeError } from '../lib/formato';
+import { fechaISO, horaEnMinutos, horaEnRango, mensajeDeError } from '../lib/formato';
 import {
   Alert,
   Badge,
@@ -26,11 +27,10 @@ import {
 const HORA_MIN = 7;
 const HORA_MAX = 20;
 
+// "Hoy" en fecha LOCAL (nunca toISOString: en Ecuador, UTC-5, eso adelanta la
+// fecha después de las ~19:00 hora local).
 function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-function fechaISO(date) {
-  return date.toISOString().slice(0, 10);
+  return fechaISO(new Date());
 }
 // Fecha con la que arranca el buscador: hoy, salvo que ya sean las 8 p. m. o más
 // (fuera del horario reservable) -> directo al día siguiente.
@@ -50,6 +50,15 @@ function horaActualHHMM() {
   const h = d.getHours();
   if (h < HORA_MIN || h >= HORA_MAX) return `${String(HORA_MIN).padStart(2, '0')}:00`;
   return `${String(h).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+// Siguiente hora en punto tras la actual, acotada a [HORA_MIN, HORA_MAX] -- valor
+// inicial de "Hasta": si ya es la hora en punto, avanza a la siguiente igual.
+function horaFinInicial() {
+  const d = new Date();
+  const h = d.getHours();
+  const siguiente = h < HORA_MIN ? HORA_MIN + 1 : h + 1;
+  if (siguiente >= HORA_MAX) return `${String(HORA_MAX).padStart(2, '0')}:00`;
+  return `${String(siguiente).padStart(2, '0')}:00`;
 }
 function minAHora(mins) {
   const h = Math.floor(mins / 60);
@@ -82,15 +91,20 @@ function calcularHueco(espacio, horaIni, horaFinBusqueda) {
 export default function ReservarEspacio() {
   const { usuario } = useAuth();
   const { mostrarToast } = useToast();
+  const location = useLocation();
   const HOY = hoyISO();
 
-  const [fecha, setFecha] = useState(fechaInicial);
-  const [horaIni, setHoraIni] = useState(horaActualHHMM);
-  const [horaFin, setHoraFin] = useState(`${HORA_MAX}:00`);
+  // Si venimos de aceptar una solicitud de un estudiante, sus datos llegan en
+  // location.state.prefill y precargan el buscador: el docente solo elige aula.
+  const prefill = location.state?.prefill;
+
+  const [fecha, setFecha] = useState(() => prefill?.fecha || fechaInicial());
+  const [horaIni, setHoraIni] = useState(() => prefill?.horaIni || horaActualHHMM());
+  const [horaFin, setHoraFin] = useState(() => prefill?.horaFin || horaFinInicial());
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroBloque, setFiltroBloque] = useState('');
   const [seleccionado, setSeleccionado] = useState(null); // espacio elegido para reservar
-  const horaTocada = useRef(false); // true en cuanto el usuario edita "Desde" a mano
+  const horaTocada = useRef(Boolean(prefill)); // true en cuanto el usuario edita "Desde" a mano
 
   function cambiarHoraIni(v) {
     horaTocada.current = true;
@@ -141,9 +155,45 @@ export default function ReservarEspacio() {
     [espacios, filtroTipo, filtroBloque]
   );
 
+  // Si venimos de aceptar una solicitud con espacio ya elegido, saltamos directo
+  // a la confirmación (la "parte final"): el docente solo confirma.
+  const autoAbierto = useRef(false);
+  const [espacioYaNoLibre, setEspacioYaNoLibre] = useState(false);
+  useEffect(() => {
+    if (!prefill?.idEspacio || autoAbierto.current || !data) return;
+    autoAbierto.current = true;
+    const espacio = espacios.find((e) => e.id_esp === prefill.idEspacio);
+    const hueco = espacio?.libre ? calcularHueco(espacio, horaIni, horaFin) : null;
+    if (espacio && hueco) {
+      setSeleccionado({ espacio, hueco });
+    } else {
+      setEspacioYaNoLibre(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
   return (
     <Layout>
       <PageHeader titulo="Reservar un espacio" descripcion="Aulas y laboratorios disponibles en este momento." />
+
+      {prefill && (
+        <div className="mt-4">
+          <Alert variant={espacioYaNoLibre ? 'error' : 'info'}>
+            {espacioYaNoLibre ? (
+              <>
+                El aula que eligió <strong>{prefill.estudiante}</strong> ya no está libre para {fecha} de {horaIni} a{' '}
+                {horaFin}. Elige otra abajo para confirmar su solicitud
+                {prefill.tema ? `: "${prefill.tema}"` : ''}.
+              </>
+            ) : (
+              <>
+                Confirmando la solicitud de <strong>{prefill.estudiante}</strong>
+                {prefill.tema ? `: "${prefill.tema}"` : ''} para {fecha} de {horaIni} a {horaFin}.
+              </>
+            )}
+          </Alert>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap items-end gap-4">
         <Input
@@ -226,6 +276,8 @@ export default function ReservarEspacio() {
         hueco={seleccionado?.hueco}
         fecha={fecha}
         misParalelos={misParalelos ?? []}
+        prefillIdParalelo={prefill?.idParalelo}
+        prefillTema={prefill?.tema}
         onCerrar={() => setSeleccionado(null)}
         onReservado={(msg) => {
           setSeleccionado(null);
@@ -255,12 +307,6 @@ function TarjetaEspacio({ espacio, hueco, onSeleccionar }) {
         </Badge>
       </div>
 
-      {hueco && (
-        <p className="text-sm text-ink/60 mt-3 pt-3 border-t border-line">
-          Libre {minAHora(hueco.inicioMin)} – {minAHora(hueco.finMin)}
-        </p>
-      )}
-
       {espacio.ocupaciones.length > 0 && (
         <ul className="mt-3 pt-3 border-t border-line space-y-1">
           {espacio.ocupaciones.map((o, i) => (
@@ -280,7 +326,7 @@ function TarjetaEspacio({ espacio, hueco, onSeleccionar }) {
   );
 }
 
-function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, onCerrar, onReservado }) {
+function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, prefillIdParalelo, prefillTema, onCerrar, onReservado }) {
   if (!abierto || !espacio || !hueco) {
     return <Modal abierto={false} onCerrar={onCerrar} titulo="" />;
   }
@@ -297,6 +343,8 @@ function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, onCe
         hueco={hueco}
         esFlexible={esFlexible}
         misParalelos={misParalelos}
+        prefillIdParalelo={prefillIdParalelo}
+        prefillTema={prefillTema}
         onCancelar={onCerrar}
         onListo={onReservado}
       />
@@ -304,11 +352,11 @@ function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, onCe
   );
 }
 
-function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalelos, onCancelar, onListo }) {
+function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalelos, prefillIdParalelo, prefillTema, onCancelar, onListo }) {
   const [horaIni, setHoraIni] = useState(minAHora(hueco.inicioMin));
   const [horaFin, setHoraFin] = useState(minAHora(Math.min(hueco.inicioMin + 60, hueco.finMin)));
-  const [motivo, setMotivo] = useState('');
-  const [idParalelo, setIdParalelo] = useState('');
+  const [motivo, setMotivo] = useState(prefillTema || '');
+  const [idParalelo, setIdParalelo] = useState(prefillIdParalelo ? String(prefillIdParalelo) : '');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
 

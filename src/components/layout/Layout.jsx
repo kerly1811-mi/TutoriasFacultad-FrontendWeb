@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ETIQUETA_ROL } from '../../lib/constantes';
 import { NAV, puede } from '../../lib/permisos';
 import { IconoNav } from './IconosNav';
+import NotificacionesMenu from './NotificacionesMenu';
 
 const CLAVE_COLAPSADO = 'sidebar_colapsado';
 
@@ -126,15 +127,6 @@ function IconoColapsar({ colapsado }) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       {colapsado ? <polyline points="9 6 15 12 9 18" /> : <polyline points="15 6 9 12 15 18" />}
-    </svg>
-  );
-}
-
-function IconoCampana() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8a6 6 0 0 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14 18 8Z" />
-      <path d="M10.5 20a1.7 1.7 0 0 0 3 0" />
     </svg>
   );
 }
@@ -337,15 +329,7 @@ export default function Layout({ children }) {
           </div>
 
           <div className="flex items-center gap-4 shrink-0">
-            <button
-              type="button"
-              title="Notificaciones"
-              aria-label="Notificaciones"
-              className="relative text-ink/50 hover:text-ink transition-colors"
-            >
-              <IconoCampana />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-azul border border-white" />
-            </button>
+            <NotificacionesMenu />
 
             <div className="w-px h-6 bg-line" />
 
