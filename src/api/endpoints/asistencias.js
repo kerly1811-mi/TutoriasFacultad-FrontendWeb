@@ -7,4 +7,13 @@ export const asistenciasApi = {
   // GET /api/asistencias/reserva/:id_rev -> Asistencia[] (incluye `estudiante`)
   listarPorReserva: (idReserva) =>
     api.get(`/asistencias/reserva/${idReserva}`).then((res) => res.data),
+
+  // POST /api/asistencias/manual (DOCENTE dueño de la reserva) -> { mensaje, asistencia }
+  // Marca presente a un estudiante matriculado en el curso de la tutoría.
+  registrarManual: (idReserva, idEstudiante) =>
+    api.post('/asistencias/manual', { id_rev: idReserva, id_est: idEstudiante }).then((res) => res.data),
+
+  // DELETE /api/asistencias/manual/:id_rev/:id_est (DOCENTE dueño) -> { mensaje }
+  quitarManual: (idReserva, idEstudiante) =>
+    api.delete(`/asistencias/manual/${idReserva}/${idEstudiante}`).then((res) => res.data),
 };

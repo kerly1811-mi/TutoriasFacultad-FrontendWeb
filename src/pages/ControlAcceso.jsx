@@ -6,8 +6,18 @@ import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { reservasApi } from '../api/endpoints/reservas';
 import { asistenciasApi } from '../api/endpoints/asistencias';
-import { formatearFecha, formatearFechaLarga, formatearRango, horaEnMinutos, mensajeDeError } from '../lib/formato';
+import { espaciosApi } from '../api/endpoints/espacios';
+import { paralelosApi } from '../api/endpoints/paralelos';
+import {
+  estadoReserva,
+  formatearFecha,
+  formatearFechaLarga,
+  formatearRango,
+  mensajeDeError,
+  puedeRegistrarAsistencia,
+} from '../lib/formato';
 import { Badge, Card, CodigoQR, ConfirmDialog, Input, Modal, PageHeader, Table } from '../components/ui';
+import FormularioEditarReserva from '../components/reservas/FormularioEditarReserva';
 
 const COLUMNAS = [
   { clave: 'espacio', titulo: 'Espacio' },
@@ -32,35 +42,11 @@ const ETIQUETA_ESTADO = {
   CANCELADA: 'Cancelada',
 };
 const ESTILO_ESTADO = {
-  PENDIENTE: 'bg-celeste/10 text-celeste-dark',
-  ACTIVA: 'bg-success/10 text-success',
-  CONCLUIDA: 'bg-ink/10 text-ink/50',
-  CANCELADA: 'bg-danger/10 text-danger',
+  PENDIENTE: 'bg-celeste/15 text-celeste-dark border border-celeste/30',
+  ACTIVA: 'bg-success/15 text-success border border-success/30',
+  CONCLUIDA: 'bg-azul-dark/10 text-azul-dark border border-azul-dark/20',
+  CANCELADA: 'bg-danger/10 text-danger border border-danger/20',
 };
-
-// Combina la fecha (medianoche UTC) con una hora "HH:MM"/ISO (hora-del-día en UTC)
-// en el instante real que representan, para poder compararlo con "ahora".
-function instanteDe(fecha, horaTxt) {
-  return new Date(new Date(fecha).getTime() + horaEnMinutos(horaTxt) * 60000);
-}
-
-// Estado real de la tutoría en este momento (no solo RESERVADA/CANCELADA de la BD).
-function estadoDe(reserva) {
-  if (reserva.estado === 'CANCELADA') return 'CANCELADA';
-  const ahora = new Date();
-  const inicio = instanteDe(reserva.fecha, reserva.hor_ini);
-  const fin = instanteDe(reserva.fecha, reserva.hor_fin);
-  if (ahora < inicio) return 'PENDIENTE';
-  if (ahora <= fin) return 'ACTIVA';
-  return 'CONCLUIDA';
-}
-
-// El botón de asistencia (QR) solo aparece hasta 5 minutos después de iniciada la tutoría.
-function puedeRegistrarAsistencia(reserva) {
-  if (reserva.estado === 'CANCELADA') return false;
-  const limite = instanteDe(reserva.fecha, reserva.hor_ini).getTime() + 5 * 60000;
-  return Date.now() <= limite;
-}
 
 export default function ControlAcceso() {
   const { usuario } = useAuth();
@@ -74,13 +60,20 @@ export default function ControlAcceso() {
   const [aCancelar, setACancelar] = useState(null);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [verQR, setVerQR] = useState(null);
+  const [aEditar, setAEditar] = useState(null);
 
   const cargar = useCallback(() => reservasApi.listar({ mias: esDocente }), [esDocente]);
   const { data, cargando, error, recargar } = useApiResource(cargar, {
     mensajeError: 'No se pudo cargar el listado.',
   });
 
-  const reservas = useMemo(() => (data ?? []).map((r) => ({ ...r, _estado: estadoDe(r) })), [data]);
+  const cargarEspacios = useCallback(() => espaciosApi.listar(), []);
+  const { data: espacios } = useApiResource(cargarEspacios, { auto: esDocente });
+
+  const cargarParalelos = useCallback(() => paralelosApi.listar({ id_doc: usuario?.id }), [usuario?.id]);
+  const { data: misParalelos } = useApiResource(cargarParalelos, { auto: esDocente });
+
+  const reservas = useMemo(() => (data ?? []).map((r) => ({ ...r, _estado: estadoReserva(r) })), [data]);
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -165,10 +158,31 @@ export default function ControlAcceso() {
               onAbrir={() => navigate(`/reservas/${r.id_rev}`)}
               onCancelar={() => setACancelar(r)}
               onVerQR={() => setVerQR(r)}
+              onEditar={() => setAEditar(r)}
             />
           )}
         />
       </div>
+
+      <Modal
+        abierto={Boolean(aEditar)}
+        onCerrar={() => setAEditar(null)}
+        titulo="Editar reserva"
+      >
+        {aEditar && (
+          <FormularioEditarReserva
+            reserva={aEditar}
+            espacios={espacios ?? []}
+            misParalelos={misParalelos ?? []}
+            onCancelar={() => setAEditar(null)}
+            onListo={() => {
+              setAEditar(null);
+              recargar();
+              mostrarToast('Reserva actualizada.', 'exito');
+            }}
+          />
+        )}
+      </Modal>
 
       <ConfirmDialog
         abierto={Boolean(aCancelar)}
@@ -189,14 +203,18 @@ export default function ControlAcceso() {
   );
 }
 
-function FilaReserva({ reserva, usuario, puedeCancelarCualquiera, cancelando, onAbrir, onCancelar, onVerQR }) {
+function FilaReserva({ reserva, usuario, puedeCancelarCualquiera, cancelando, onAbrir, onCancelar, onVerQR, onEditar }) {
   const estado = reserva._estado;
   const esDueno = reserva.solicitante?.id_usr === usuario?.id;
   const puedeCancelar = (estado === 'PENDIENTE' || estado === 'ACTIVA') && (esDueno || puedeCancelarCualquiera);
+  const puedeEditar = (estado === 'PENDIENTE' || estado === 'ACTIVA') && esDueno;
   const mostrarQR = puedeRegistrarAsistencia(reserva);
 
   return (
-    <tr onClick={onAbrir} className="border-b border-line last:border-0 cursor-pointer hover:bg-paper/60">
+    <tr
+      onClick={onAbrir}
+      className="border-b border-line last:border-0 cursor-pointer hover:bg-paper/60 transition-colors"
+    >
       <td className="px-5 py-3">{reserva.espacio?.nom_esp || '—'}</td>
       <td className="px-5 py-3">{formatearFecha(reserva.fecha)}</td>
       <td className="px-5 py-3">{formatearRango(reserva.hor_ini, reserva.hor_fin)}</td>
@@ -205,7 +223,10 @@ function FilaReserva({ reserva, usuario, puedeCancelarCualquiera, cancelando, on
         <CeldaAsistentes idReserva={reserva.id_rev} />
       </td>
       <td className="px-5 py-3">
-        <Badge className={ESTILO_ESTADO[estado]}>{ETIQUETA_ESTADO[estado]}</Badge>
+        <Badge className={`inline-flex items-center gap-1.5 ${ESTILO_ESTADO[estado]}`}>
+          {estado === 'ACTIVA' && <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />}
+          {ETIQUETA_ESTADO[estado]}
+        </Badge>
       </td>
       <td className="px-5 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
         {mostrarQR && (
@@ -214,9 +235,20 @@ function FilaReserva({ reserva, usuario, puedeCancelarCualquiera, cancelando, on
             onClick={onVerQR}
             title="Registro de asistencia"
             aria-label="Registro de asistencia"
-            className="text-ink/40 hover:text-azul transition-colors"
+            className="text-celeste-dark/60 hover:text-celeste-dark transition-colors"
           >
             <IconoQR />
+          </button>
+        )}
+        {puedeEditar && (
+          <button
+            type="button"
+            onClick={onEditar}
+            title="Editar reserva"
+            aria-label="Editar reserva"
+            className="ml-3 text-azul/60 hover:text-azul transition-colors"
+          >
+            <IconoEditar />
           </button>
         )}
         {puedeCancelar && (
@@ -226,7 +258,7 @@ function FilaReserva({ reserva, usuario, puedeCancelarCualquiera, cancelando, on
             disabled={cancelando}
             title="Cancelar reserva"
             aria-label="Cancelar reserva"
-            className="ml-3 text-ink/40 hover:text-danger transition-colors disabled:opacity-50"
+            className="ml-3 text-danger/60 hover:text-danger transition-colors disabled:opacity-50"
           >
             <IconoCancelar />
           </button>
@@ -259,7 +291,7 @@ function ModalQR({ reserva, onCerrar }) {
       </Card>
 
       <p className="text-xs text-ink/50 mt-3">
-        El código QR estará disponible hasta 5 minutos después de iniciada la tutoría.
+        El código QR está disponible hasta 5 minutos después de finalizada la tutoría.
       </p>
     </Modal>
   );
@@ -290,6 +322,15 @@ function IconoCancelar() {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
       <circle cx="12" cy="12" r="9" />
       <path d="m9.5 9.5 5 5m0-5-5 5" />
+    </svg>
+  );
+}
+
+function IconoEditar() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
   );
 }

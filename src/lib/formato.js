@@ -48,6 +48,17 @@ export function formatearHora(valor) {
   return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
 }
 
+// Hora en formato 24h "HH:MM" de un instante REAL (p. ej. `hora_registro`, que se
+// guarda con `@default(now())` en UTC de verdad) mostrado en la hora LOCAL del
+// navegador. No usar con fecha/hor_ini/hor_fin: esos son "naive" (ver arriba) y
+// deben seguir pasando por `formatearHora`, que los lee en UTC.
+export function formatearHoraLocal(valor) {
+  if (!valor) return '—';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return String(valor);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 // Rango "09:00 – 11:00"
 export function formatearRango(ini, fin) {
   return `${formatearHora(ini)} – ${formatearHora(fin)}`;
@@ -122,4 +133,40 @@ export function semanaActual() {
 // ¿La fecha (Date) dada es la de hoy (hora local)?
 export function esHoy(d) {
   return fechaISO(d) === fechaISO(new Date());
+}
+
+// Combina la fecha (medianoche UTC) con una hora "HH:MM"/ISO (hora-del-día en UTC)
+// en el instante que representan, para comparar con "ahora".
+export function instanteDeReserva(fecha, horaTxt) {
+  return new Date(new Date(fecha).getTime() + horaEnMinutos(horaTxt) * 60000);
+}
+
+// "Ahora" en la misma convención que fecha/hor_ini/hor_fin: la hora del reloj
+// (local, de Ecuador) reetiquetada como si fuera UTC. Usar `new Date()` tal cual
+// aquí compararía contra el instante UTC real, que está 5h adelantado de
+// Ecuador, y las tutorías aparecerían con un estado 5 horas adelantado.
+export function ahoraComoNaive() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()));
+}
+
+// Estado real de una reserva/tutoría en este momento (no solo RESERVADA/CANCELADA de la BD).
+export function estadoReserva(reserva) {
+  if (reserva.estado === 'CANCELADA') return 'CANCELADA';
+  const ahora = ahoraComoNaive();
+  const inicio = instanteDeReserva(reserva.fecha, reserva.hor_ini);
+  const fin = instanteDeReserva(reserva.fecha, reserva.hor_fin);
+  if (ahora < inicio) return 'PENDIENTE';
+  if (ahora <= fin) return 'ACTIVA';
+  return 'CONCLUIDA';
+}
+
+// La asistencia (QR o manual) solo se puede registrar desde que comienza la
+// tutoría hasta 5 minutos después de su hora de finalización.
+export function puedeRegistrarAsistencia(reserva) {
+  if (reserva.estado === 'CANCELADA') return false;
+  const ahora = ahoraComoNaive().getTime();
+  const inicio = instanteDeReserva(reserva.fecha, reserva.hor_ini).getTime();
+  const limite = instanteDeReserva(reserva.fecha, reserva.hor_fin).getTime() + 5 * 60000;
+  return ahora >= inicio && ahora <= limite;
 }

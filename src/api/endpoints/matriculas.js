@@ -1,9 +1,10 @@
 import api from '../client';
 
-// Wrappers sobre /api/matriculas. ADMIN ve todas; ESTUDIANTE solo las suyas.
+// Wrappers sobre /api/matriculas. ADMIN ve todas; ESTUDIANTE solo las suyas;
+// DOCENTE debe pasar { id_par } de un paralelo suyo.
 export const matriculasApi = {
-  // GET /api/matriculas -> Matricula[] (incluye `estudiante` y `paralelo` con materia/nivel/carrera/docente)
-  listar: () => api.get('/matriculas').then((res) => res.data),
+  // GET /api/matriculas?id_par= -> Matricula[] (incluye `estudiante` y `paralelo` con materia/nivel/carrera/docente)
+  listar: (params) => api.get('/matriculas', { params }).then((res) => res.data),
 
   // POST /api/matriculas -> { mensaje, matricula }
   // datos = { id_est, id_par }

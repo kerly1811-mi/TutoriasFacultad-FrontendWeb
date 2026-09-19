@@ -13,9 +13,18 @@ export const reservasApi = {
   // Puede responder 409 si el aula ya está ocupada en esa franja.
   crear: (datos) => api.post('/reservas', datos).then((res) => res.data),
 
+  // PUT /api/reservas/:id (dueño de la reserva) -> { mensaje, reserva }
+  // Mismo payload que crear(); vuelve a validar choques excluyéndose a sí misma.
+  actualizar: (id, datos) => api.put(`/reservas/${id}`, datos).then((res) => res.data),
+
   // PATCH /api/reservas/:id/cancelar (dueño, LABORATORISTA o ADMIN) -> { mensaje, reserva }
   // `motivo` es obligatorio: por qué se cancela la reserva.
   cancelar: (id, motivo) => api.patch(`/reservas/${id}/cancelar`, { motivo }).then((res) => res.data),
+
+  // PATCH /api/reservas/:id/finalizar (DOCENTE dueño) -> { mensaje, reserva }
+  // Recorta hor_fin a `horaFin` ('HH:MM', la hora local actual): la tutoría
+  // queda concluida desde ya y el resto del espacio queda libre.
+  finalizar: (id, horaFin) => api.patch(`/reservas/${id}/finalizar`, { hora_fin: horaFin }).then((res) => res.data),
 
   // El backend no expone GET /api/reservas/:id, así que se obtiene del listado.
   obtener: (id) =>
