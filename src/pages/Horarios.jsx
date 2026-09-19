@@ -5,23 +5,10 @@ import { useForm } from '../hooks/useForm';
 import { horariosApi } from '../api/endpoints/horarios';
 import { espaciosApi } from '../api/endpoints/espacios';
 import { usuariosApi } from '../api/endpoints/usuarios';
-import { tutoriasApi } from '../api/endpoints/tutorias';
 import { reservasApi } from '../api/endpoints/reservas';
 import { DIAS_SEMANA, ETIQUETA_DIA, OPCIONES_DIA } from '../lib/constantes';
-import { esHoy, fechaISO, horaEnRango, mensajeDeError, mismaFecha, semanaActual } from '../lib/formato';
-import { useToast } from '../context/ToastContext';
-import {
-  Alert,
-  Badge,
-  Button,
-  ConfirmDialog,
-  DataState,
-  Input,
-  Modal,
-  PageHeader,
-  Select,
-  SelectorHora,
-} from '../components/ui';
+import { esHoy, fechaISO, horaEnRango, mensajeDeError, semanaActual } from '../lib/formato';
+import { Alert, Badge, Button, DataState, Input, Modal, PageHeader, Select, SelectorHora } from '../components/ui';
 
 const HORA_MIN = 7;
 const HORA_MAX = 20;
@@ -42,18 +29,14 @@ export default function Horarios() {
   });
   const [modalClase, setModalClase] = useState(null); // null | { horario? }
   const [modalReserva, setModalReserva] = useState(false);
-  const [aCancelar, setACancelar] = useState(null); // null | id_rev
-  const [cancelando, setCancelando] = useState(false);
-  const { mostrarToast } = useToast();
 
   const cargar = useCallback(async () => {
-    const [horarios, espacios, docentes, tutorias] = await Promise.all([
+    const [horarios, espacios, docentes] = await Promise.all([
       horariosApi.listar(),
       espaciosApi.listar(),
       usuariosApi.listar('DOCENTE'),
-      tutoriasApi.listar(),
     ]);
-    return { horarios, espacios, docentes, tutorias };
+    return { horarios, espacios, docentes };
   }, []);
 
   const { data, cargando, error, recargar } = useApiResource(cargar, {
@@ -63,7 +46,6 @@ export default function Horarios() {
   const horarios = data?.horarios ?? [];
   const espacios = data?.espacios ?? [];
   const docentes = data?.docentes ?? [];
-  const tutorias = data?.tutorias ?? [];
 
   const diaFecha = semana[diaIndice];
   const diaTxt = DIAS_MOSTRADOS[diaIndice];
@@ -82,20 +64,8 @@ export default function Horarios() {
         horario: h,
       }));
 
-    const eventosReserva = tutorias
-      .filter((t) => mismaFecha(t.fecha, fechaTxt))
-      .map((t) => ({
-        tipo: 'RESERVA',
-        espacio: t.aula,
-        hora_ini: t.hora_ini,
-        hora_fin: t.hora_fin,
-        titulo: t.tema,
-        docente: t.docente,
-        id_rev: t.id_rev,
-      }));
-
     const mapa = new Map();
-    [...eventosClase, ...eventosReserva].forEach((e) => {
+    eventosClase.forEach((e) => {
       if (!mapa.has(e.espacio)) mapa.set(e.espacio, []);
       mapa.get(e.espacio).push(e);
     });
@@ -103,7 +73,7 @@ export default function Horarios() {
     return [...mapa.entries()]
       .map(([espacio, items]) => ({ espacio, items: items.sort((a, b) => a.hora_ini.localeCompare(b.hora_ini)) }))
       .sort((a, b) => a.espacio.localeCompare(b.espacio));
-  }, [horarios, tutorias, diaTxt, fechaTxt]);
+  }, [horarios, diaTxt]);
 
   async function eliminarClase(id) {
     if (!window.confirm('¿Eliminar este bloque de clase?')) return;
@@ -115,24 +85,9 @@ export default function Horarios() {
     }
   }
 
-  async function confirmarCancelacion(razon) {
-    if (!aCancelar) return;
-    setCancelando(true);
-    try {
-      await reservasApi.cancelar(aCancelar, razon);
-      await recargar();
-      mostrarToast('Reserva cancelada.', 'exito');
-    } catch (err) {
-      mostrarToast(mensajeDeError(err, 'No se pudo cancelar la reserva.'), 'error');
-    } finally {
-      setCancelando(false);
-      setACancelar(null);
-    }
-  }
-
   return (
     <Layout>
-      <PageHeader titulo="Horarios" descripcion="Tu semana, organizada por aula: clase fija o reserva puntual.">
+      <PageHeader titulo="Horarios" descripcion="Tu semana, organizada por aula: el horario fijo de clases.">
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setModalReserva(true)}>
             Reservar
@@ -159,21 +114,12 @@ export default function Horarios() {
         ))}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 text-xs text-ink/50">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Clase (horario fijo)
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Reserva (tutoría)
-        </span>
-      </div>
-
       <div className="mt-4 space-y-2">
         <DataState
           cargando={cargando}
           error={error}
           vacio={grupos.length === 0}
-          mensajeVacio={`No hay clases ni reservas el ${ETIQUETA_DIA[diaTxt]}.`}
+          mensajeVacio={`No hay clases el ${ETIQUETA_DIA[diaTxt]}.`}
         >
           {grupos.map((g) => (
             <details key={g.espacio} className="rounded-md border border-line bg-white overflow-hidden group" open>
@@ -202,36 +148,25 @@ export default function Horarios() {
                       <p className="font-medium text-ink">{e.hora_ini}</p>
                       <p>{e.hora_fin}</p>
                     </div>
-                    <Badge className={`shrink-0 ${e.tipo === 'CLASE' ? 'bg-amber-500/10 text-amber-700' : 'bg-emerald-500/10 text-emerald-700'}`}>
-                      {e.tipo === 'CLASE' ? 'Clase' : 'Reserva'}
-                    </Badge>
+                    <Badge className="shrink-0 bg-amber-500/10 text-amber-700">Clase</Badge>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-ink truncate">{e.titulo}</p>
                       <p className="text-xs text-ink/50 truncate">{e.docente}</p>
                     </div>
-                    {e.tipo === 'CLASE' ? (
-                      <div className="shrink-0 flex items-center gap-3">
-                        <button
-                          onClick={() => setModalClase({ horario: e.horario })}
-                          className="text-xs text-azul font-medium hover:underline"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => eliminarClase(e.horario.id_hor)}
-                          className="text-xs text-danger font-medium hover:underline"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ) : (
+                    <div className="shrink-0 flex items-center gap-3">
                       <button
-                        onClick={() => setACancelar(e.id_rev)}
-                        className="shrink-0 text-xs text-danger font-medium hover:underline"
+                        onClick={() => setModalClase({ horario: e.horario })}
+                        className="text-xs text-azul font-medium hover:underline"
                       >
-                        Cancelar
+                        Editar
                       </button>
-                    )}
+                      <button
+                        onClick={() => eliminarClase(e.horario.id_hor)}
+                        className="text-xs text-danger font-medium hover:underline"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -273,20 +208,6 @@ export default function Horarios() {
           />
         )}
       </Modal>
-
-      <ConfirmDialog
-        abierto={Boolean(aCancelar)}
-        titulo="Cancelar reserva"
-        mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
-        textoConfirmar="Cancelar reserva"
-        textoCargando="Cancelando…"
-        pedirRazon
-        labelRazon="Motivo de la cancelación"
-        placeholderRazon="Ej: mantenimiento urgente del aula"
-        cargando={cancelando}
-        onConfirmar={confirmarCancelacion}
-        onCancelar={() => setACancelar(null)}
-      />
     </Layout>
   );
 }

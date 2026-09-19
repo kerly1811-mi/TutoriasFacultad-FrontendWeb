@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout';
 import { useApiResource } from '../hooks/useApiResource';
 import { tutoriasApi } from '../api/endpoints/tutorias';
 import { ETIQUETA_BLOQUE } from '../lib/constantes';
-import { formatearFecha, formatearRango } from '../lib/formato';
+import { ahoraComoNaive, formatearFecha, formatearRango, instanteDeReserva } from '../lib/formato';
 import { Card, DataState, PageHeader, SkeletonCards } from '../components/ui';
 
 // Agrupa las tutorías por curso, en el orden en que aparece cada una por primera vez.
@@ -22,7 +22,11 @@ export default function Tutorias() {
   const { data, cargando, error } = useApiResource(cargar, {
     mensajeError: 'No se pudieron cargar las tutorías.',
   });
-  const tutorias = data ?? [];
+  // Solo próximas o en curso: se excluyen las que ya concluyeron (hor_fin ya pasó).
+  const tutorias = useMemo(
+    () => (data ?? []).filter((t) => instanteDeReserva(t.fecha, t.hora_fin).getTime() >= ahoraComoNaive().getTime()),
+    [data]
+  );
   const grupos = useMemo(() => agruparPorCurso(tutorias), [tutorias]);
 
   return (

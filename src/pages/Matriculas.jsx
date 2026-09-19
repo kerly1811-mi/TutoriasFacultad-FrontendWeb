@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
@@ -7,15 +7,8 @@ import { matriculasApi } from '../api/endpoints/matriculas';
 import { paralelosApi } from '../api/endpoints/paralelos';
 import { usuariosApi } from '../api/endpoints/usuarios';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, ConfirmDialog, Input, Modal, PageHeader, Select, Table } from '../components/ui';
-
-const OPCIONES_MIN = [
-  { value: '0', label: 'Cualquier cantidad' },
-  { value: '1', label: '1 o más estudiantes' },
-  { value: '5', label: '5 o más estudiantes' },
-  { value: '10', label: '10 o más estudiantes' },
-  { value: '20', label: '20 o más estudiantes' },
-];
+import { Alert, Button, ConfirmDialog, Modal, PageHeader, Select, Table } from '../components/ui';
+import { ETIQUETA_CAMPO } from '../components/ui/estilos';
 
 const COLUMNAS = [
   { clave: 'estudiante', titulo: 'Estudiante' },
@@ -35,8 +28,6 @@ export default function Matriculas() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [aEliminar, setAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
-  const [busqueda, setBusqueda] = useState('');
-  const [minEstudiantes, setMinEstudiantes] = useState('0');
 
   const cargar = useCallback(async () => {
     const [matriculas, paralelos, estudiantes] = await Promise.all([
@@ -54,28 +45,6 @@ export default function Matriculas() {
   const paralelos = data?.paralelos ?? [];
   const estudiantes = data?.estudiantes ?? [];
   const puedeMatricular = paralelos.length > 0 && estudiantes.length > 0;
-
-  // Cantidad de estudiantes matriculados por paralelo, para el filtro y el badge de la tabla.
-  const conteoPorParalelo = useMemo(() => {
-    const mapa = new Map();
-    matriculas.forEach((m) => {
-      const id = m.paralelo?.id_par;
-      if (id) mapa.set(id, (mapa.get(id) || 0) + 1);
-    });
-    return mapa;
-  }, [matriculas]);
-
-  const matriculasFiltradas = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    const minimo = Number(minEstudiantes);
-    return matriculas.filter((m) => {
-      const cantidad = conteoPorParalelo.get(m.paralelo?.id_par) || 0;
-      if (cantidad < minimo) return false;
-      if (!q) return true;
-      const texto = `${m.estudiante?.nombres || ''} ${m.estudiante?.apellidos || ''} ${m.estudiante?.cedula || ''} ${etiquetaParalelo(m.paralelo)}`.toLowerCase();
-      return texto.includes(q);
-    });
-  }, [matriculas, busqueda, minEstudiantes, conteoPorParalelo]);
 
   async function confirmarEliminar() {
     if (!aEliminar) return;
@@ -110,45 +79,20 @@ export default function Matriculas() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap items-end gap-3">
-        <Input
-          label="Buscar"
-          placeholder="Nombre, cédula o curso…"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="w-64"
-        />
-        <Select
-          label="Estudiantes por curso"
-          value={minEstudiantes}
-          onChange={(e) => setMinEstudiantes(e.target.value)}
-          options={OPCIONES_MIN}
-          className="w-52"
-        />
-        <p className="text-sm text-ink/50 pb-2">{matriculasFiltradas.length} matrícula(s)</p>
-      </div>
-
-      <div className="mt-4">
+      <div className="mt-6">
         <Table
           columnas={COLUMNAS}
-          datos={matriculasFiltradas}
+          datos={matriculas}
           cargando={cargando}
           error={error}
-          mensajeVacio="Ninguna matrícula coincide con los filtros."
+          mensajeVacio="Aún no hay matrículas registradas."
           renderFila={(m) => (
             <tr key={m.id_matricula} className="border-b border-line last:border-0">
               <td className="px-5 py-3">
                 {m.estudiante ? `${m.estudiante.nombres} ${m.estudiante.apellidos}` : '—'}
               </td>
               <td className="px-5 py-3 text-ink/70">{m.estudiante?.cedula || '—'}</td>
-              <td className="px-5 py-3">
-                <span className="inline-flex items-center gap-2">
-                  {etiquetaParalelo(m.paralelo)}
-                  <Badge className="bg-line text-ink/60 shrink-0">
-                    {conteoPorParalelo.get(m.paralelo?.id_par) || 0}
-                  </Badge>
-                </span>
-              </td>
+              <td className="px-5 py-3">{etiquetaParalelo(m.paralelo)}</td>
               <td className="px-5 py-3 text-ink/70">
                 {m.paralelo?.nivel?.nom_niv} · {m.paralelo?.nivel?.carrera?.nom_car}
               </td>
@@ -196,8 +140,8 @@ export default function Matriculas() {
 }
 
 function FormularioMatricula({ paralelos, estudiantes, onCancelar, onListo }) {
-  const { valores, handleChange } = useForm({
-    id_est: estudiantes[0] ? String(estudiantes[0].id_usr) : '',
+  const { valores, handleChange, setCampo } = useForm({
+    id_est: '',
     id_par: paralelos[0] ? String(paralelos[0].id_par) : '',
   });
   const [enviando, setEnviando] = useState(false);
@@ -205,8 +149,9 @@ function FormularioMatricula({ paralelos, estudiantes, onCancelar, onListo }) {
 
   async function manejarEnvio(e) {
     e.preventDefault();
-    setEnviando(true);
     setError(null);
+    if (!valores.id_est) return setError('Selecciona un estudiante de la lista.');
+    setEnviando(true);
     try {
       await matriculasApi.crear({ id_est: Number(valores.id_est), id_par: Number(valores.id_par) });
       onListo();
@@ -219,13 +164,11 @@ function FormularioMatricula({ paralelos, estudiantes, onCancelar, onListo }) {
 
   return (
     <form onSubmit={manejarEnvio} className="space-y-4">
-      <Select label="Estudiante" name="id_est" required value={valores.id_est} onChange={handleChange}>
-        {estudiantes.map((e) => (
-          <option key={e.id_usr} value={e.id_usr}>
-            {e.nombres} {e.apellidos} · {e.cedula}
-          </option>
-        ))}
-      </Select>
+      <SelectorEstudianteBuscable
+        estudiantes={estudiantes}
+        value={valores.id_est}
+        onChange={(id) => setCampo('id_est', id)}
+      />
       <Select label="Paralelo" name="id_par" required value={valores.id_par} onChange={handleChange}>
         {paralelos.map((p) => (
           <option key={p.id_par} value={p.id_par}>
@@ -245,5 +188,81 @@ function FormularioMatricula({ paralelos, estudiantes, onCancelar, onListo }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+// Combo de estudiante con búsqueda: se escribe nombre o cédula y filtra la
+// lista en vez de desplazarse por un <select> con decenas de estudiantes.
+// El texto que se escribe (`query`) es independiente de la etiqueta del
+// estudiante ya elegido: al enfocar, siempre arranca vacío mostrando la
+// lista completa, en vez de "filtrarse" contra el nombre ya seleccionado.
+function SelectorEstudianteBuscable({ estudiantes, value, onChange }) {
+  const seleccionado = estudiantes.find((e) => String(e.id_usr) === String(value));
+  const [query, setQuery] = useState('');
+  const [abierto, setAbierto] = useState(false);
+  const contenedorRef = useRef(null);
+
+  useEffect(() => {
+    if (!abierto) return undefined;
+    function alClicFuera(e) {
+      if (contenedorRef.current && !contenedorRef.current.contains(e.target)) setAbierto(false);
+    }
+    document.addEventListener('mousedown', alClicFuera);
+    return () => document.removeEventListener('mousedown', alClicFuera);
+  }, [abierto]);
+
+  const q = query.trim().toLowerCase();
+  const filtrados = q
+    ? estudiantes.filter((e) => `${e.nombres} ${e.apellidos} ${e.cedula}`.toLowerCase().includes(q))
+    : estudiantes;
+
+  function elegir(e) {
+    onChange(String(e.id_usr));
+    setQuery('');
+    setAbierto(false);
+  }
+
+  const valorMostrado = abierto
+    ? query
+    : seleccionado
+    ? `${seleccionado.nombres} ${seleccionado.apellidos} · ${seleccionado.cedula}`
+    : '';
+
+  return (
+    <div className="relative" ref={contenedorRef}>
+      <label className={ETIQUETA_CAMPO}>Estudiante</label>
+      <input
+        type="text"
+        value={valorMostrado}
+        onFocus={() => {
+          setQuery('');
+          setAbierto(true);
+        }}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Escribe nombre o cédula…"
+        className="w-full rounded-md border border-line px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-azul/40 focus:border-azul"
+      />
+      {abierto && (
+        <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-line bg-white shadow-lg">
+          {filtrados.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-ink/50">Ningún estudiante coincide.</li>
+          ) : (
+            filtrados.map((e) => (
+              <li key={e.id_usr}>
+                <button
+                  type="button"
+                  onClick={() => elegir(e)}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-paper/60 transition-colors ${
+                    String(e.id_usr) === String(value) ? 'bg-celeste/10 text-celeste-dark font-medium' : ''
+                  }`}
+                >
+                  {e.nombres} {e.apellidos} <span className="text-ink/50">· {e.cedula}</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
   );
 }

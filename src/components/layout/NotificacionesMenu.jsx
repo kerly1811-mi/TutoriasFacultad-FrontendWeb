@@ -10,16 +10,15 @@ const RUTA_POR_TIPO = {
   RESERVA_CANCELADA: { ESTUDIANTE: '/mis-tutorias', DOCENTE: '/control-acceso' },
 };
 
-// dd/mm/aaaa hh:mm en hora LOCAL (creado_en es un timestamp real de Prisma,
-// no un campo "naive" -- por eso se lee con los getters locales, no UTC).
-function formatearFechaHora(valor) {
-  const d = new Date(valor);
-  if (Number.isNaN(d.getTime())) return '';
-  const dia = String(d.getDate()).padStart(2, '0');
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${dia}/${mes}/${d.getFullYear()} ${hh}:${mm}`;
+function tiempoRelativo(fechaISO) {
+  const segundos = Math.max(0, Math.floor((Date.now() - new Date(fechaISO).getTime()) / 1000));
+  if (segundos < 60) return 'Ahora';
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) return `Hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `Hace ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return `Hace ${dias} d`;
 }
 
 function IconoCampana() {
@@ -128,7 +127,7 @@ export default function NotificacionesMenu() {
                       {!n.leida && <span className="w-1.5 h-1.5 rounded-full bg-azul mt-1.5 shrink-0" />}
                       <div className="min-w-0">
                         <p className="leading-snug">{n.mensaje}</p>
-                        <p className="text-xs text-ink/40 mt-1">{formatearFechaHora(n.creado_en)}</p>
+                        <p className="text-xs text-ink/40 mt-1">{tiempoRelativo(n.creado_en)}</p>
                       </div>
                     </div>
                   </button>
