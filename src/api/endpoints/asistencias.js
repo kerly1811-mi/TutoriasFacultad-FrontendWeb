@@ -8,6 +8,10 @@ export const asistenciasApi = {
   listarPorReserva: (idReserva) =>
     api.get(`/asistencias/reserva/${idReserva}`).then((res) => res.data),
 
+  // GET /api/asistencias/mias (ESTUDIANTE) -> Asistencia[] (incluye `reserva` con
+  // espacio/solicitante/paralelo) -- las tutorías a las que ya asistió.
+  listarMias: () => api.get('/asistencias/mias').then((res) => res.data),
+
   // POST /api/asistencias/manual (DOCENTE dueño de la reserva) -> { mensaje, asistencia }
   // Marca presente a un estudiante matriculado en el curso de la tutoría.
   registrarManual: (idReserva, idEstudiante) =>
