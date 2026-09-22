@@ -34,7 +34,7 @@ export default function Horarios() {
     const [horarios, espacios, docentes] = await Promise.all([
       horariosApi.listar(),
       espaciosApi.listar(),
-      usuariosApi.listar('DOCENTE'),
+      usuariosApi.listar({ rol: 'DOCENTE' }),
     ]);
     return { horarios, espacios, docentes };
   }, []);

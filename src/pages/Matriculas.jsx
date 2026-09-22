@@ -33,7 +33,7 @@ export default function Matriculas() {
     const [matriculas, paralelos, estudiantes] = await Promise.all([
       matriculasApi.listar(),
       paralelosApi.listar(),
-      usuariosApi.listar('ESTUDIANTE'),
+      usuariosApi.listar({ rol: 'ESTUDIANTE' }),
     ]);
     return { matriculas, paralelos, estudiantes };
   }, []);

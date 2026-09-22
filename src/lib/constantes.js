@@ -63,6 +63,17 @@ export const ESTILO_ESTADO_ESPACIO = {
   MANTENIMIENTO: 'bg-danger/10 text-danger',
 };
 
+// --- Activo / inactivo (Usuarios y Espacios: se deshabilitan, no se eliminan) ---
+export const ETIQUETA_ESTADO_ACTIVO = {
+  true: 'Activo',
+  false: 'Inactivo',
+};
+
+export const ESTILO_ESTADO_ACTIVO = {
+  true: 'bg-success/10 text-success',
+  false: 'bg-danger/10 text-danger',
+};
+
 // --- Estado de la reserva ---
 export const ETIQUETA_ESTADO_RESERVA = {
   RESERVADA: 'Reservada',

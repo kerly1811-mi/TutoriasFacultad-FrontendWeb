@@ -38,7 +38,7 @@ export default function Paralelos() {
       paralelosApi.listar(),
       materiasApi.listar(),
       carrerasApi.listar(),
-      usuariosApi.listar('DOCENTE'),
+      usuariosApi.listar({ rol: 'DOCENTE' }),
     ]);
     return { paralelos, materias, carreras, docentes };
   }, []);

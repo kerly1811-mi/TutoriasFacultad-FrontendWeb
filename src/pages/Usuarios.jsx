@@ -1,28 +1,62 @@
 import { useCallback, useState } from 'react';
 import Layout from '../components/layout/Layout';
+import { useAuth } from '../context/AuthContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { useForm } from '../hooks/useForm';
 import { usuariosApi } from '../api/endpoints/usuarios';
-import { ETIQUETA_ROL, OPCIONES_ROL_GESTIONABLE } from '../lib/constantes';
+import { ETIQUETA_ESTADO_ACTIVO, ESTILO_ESTADO_ACTIVO, ETIQUETA_ROL, OPCIONES_ROL_GESTIONABLE } from '../lib/constantes';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, Input, Modal, PageHeader, Select, Table } from '../components/ui';
+import { cedulaValida } from '../lib/validadores';
+import { Alert, Badge, Button, ConfirmDialog, Input, Modal, PageHeader, Select, Table } from '../components/ui';
+import { useToast } from '../context/ToastContext';
 
 const COLUMNAS = [
   { clave: 'nombre', titulo: 'Nombre' },
   { clave: 'cedula', titulo: 'Cédula' },
   { clave: 'correo', titulo: 'Correo' },
   { clave: 'rol', titulo: 'Rol' },
+  { clave: 'estado', titulo: 'Estado' },
+  { clave: 'acciones', titulo: '' },
 ];
 
 export default function Usuarios() {
+  const { usuario: usuarioActual } = useAuth();
+  const { mostrarToast } = useToast();
   const [modalAbierto, setModalAbierto] = useState(false);
   const [creado, setCreado] = useState(null);
+  const [aDeshabilitar, setADeshabilitar] = useState(null);
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
 
-  const cargar = useCallback(() => usuariosApi.listar(), []);
+  const cargar = useCallback(() => usuariosApi.listar({ incluirInactivos: true }), []);
   const { data, cargando, error, recargar } = useApiResource(cargar, {
     mensajeError: 'No se pudieron cargar los usuarios.',
   });
   const usuarios = data ?? [];
+
+  async function confirmarDeshabilitar() {
+    if (!aDeshabilitar) return;
+    setCambiandoEstado(true);
+    try {
+      await usuariosApi.cambiarEstado(aDeshabilitar.id_usr, false);
+      recargar();
+      mostrarToast(`Usuario "${aDeshabilitar.correo}" deshabilitado.`, 'exito');
+    } catch (err) {
+      mostrarToast(mensajeDeError(err, 'No se pudo deshabilitar el usuario.'), 'error');
+    } finally {
+      setCambiandoEstado(false);
+      setADeshabilitar(null);
+    }
+  }
+
+  async function habilitar(u) {
+    try {
+      await usuariosApi.cambiarEstado(u.id_usr, true);
+      recargar();
+      mostrarToast(`Usuario "${u.correo}" habilitado.`, 'exito');
+    } catch (err) {
+      mostrarToast(mensajeDeError(err, 'No se pudo habilitar el usuario.'), 'error');
+    }
+  }
 
   return (
     <Layout>
@@ -50,7 +84,7 @@ export default function Usuarios() {
           error={error}
           mensajeVacio="No hay usuarios."
           renderFila={(u) => (
-            <tr key={u.id_usr} className="border-b border-line last:border-0">
+            <tr key={u.id_usr} className={`border-b border-line last:border-0 ${u.activo ? '' : 'opacity-60'}`}>
               <td className="px-5 py-3">
                 {u.nombres} {u.apellidos}
               </td>
@@ -58,6 +92,20 @@ export default function Usuarios() {
               <td className="px-5 py-3 text-ink/70">{u.correo}</td>
               <td className="px-5 py-3">
                 <Badge className="bg-celeste/10 text-celeste-dark">{ETIQUETA_ROL[u.rol] || u.rol}</Badge>
+              </td>
+              <td className="px-5 py-3">
+                <Badge className={ESTILO_ESTADO_ACTIVO[u.activo]}>{ETIQUETA_ESTADO_ACTIVO[u.activo]}</Badge>
+              </td>
+              <td className="px-5 py-3 text-sm">
+                {u.id_usr === usuarioActual?.id ? null : u.activo ? (
+                  <button onClick={() => setADeshabilitar(u)} className="text-danger font-medium hover:underline">
+                    Deshabilitar
+                  </button>
+                ) : (
+                  <button onClick={() => habilitar(u)} className="text-success font-medium hover:underline">
+                    Habilitar
+                  </button>
+                )}
               </td>
             </tr>
           )}
@@ -74,6 +122,21 @@ export default function Usuarios() {
           }}
         />
       </Modal>
+
+      <ConfirmDialog
+        abierto={Boolean(aDeshabilitar)}
+        titulo="Deshabilitar usuario"
+        mensaje={
+          aDeshabilitar
+            ? `¿Deshabilitar a "${aDeshabilitar.nombres} ${aDeshabilitar.apellidos}"? No podrá iniciar sesión hasta que lo vuelvas a habilitar.`
+            : ''
+        }
+        textoConfirmar="Deshabilitar"
+        textoCargando="Deshabilitando…"
+        cargando={cambiandoEstado}
+        onConfirmar={confirmarDeshabilitar}
+        onCancelar={() => setADeshabilitar(null)}
+      />
     </Layout>
   );
 }
@@ -89,9 +152,15 @@ function FormularioUsuario({ onCancelar, onListo }) {
   });
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
+  const [errorCedula, setErrorCedula] = useState(null);
 
   async function manejarEnvio(e) {
     e.preventDefault();
+    if (!cedulaValida(valores.cedula)) {
+      setErrorCedula('La cédula ingresada no es válida.');
+      return;
+    }
+    setErrorCedula(null);
     setEnviando(true);
     setError(null);
     try {
@@ -115,17 +184,22 @@ function FormularioUsuario({ onCancelar, onListo }) {
         maxLength={10}
         title="10 dígitos numéricos."
         value={valores.cedula}
-        onChange={handleChange}
+        onChange={(e) => {
+          setErrorCedula(null);
+          handleChange(e);
+        }}
+        error={errorCedula}
       />
       <Select label="Rol" name="rol" value={valores.rol} onChange={handleChange} options={OPCIONES_ROL_GESTIONABLE} />
-      <Input label="Nombres" name="nombres" required value={valores.nombres} onChange={handleChange} />
-      <Input label="Apellidos" name="apellidos" required value={valores.apellidos} onChange={handleChange} />
+      <Input label="Nombres" name="nombres" required maxLength={100} value={valores.nombres} onChange={handleChange} />
+      <Input label="Apellidos" name="apellidos" required maxLength={100} value={valores.apellidos} onChange={handleChange} />
       <div className="col-span-2">
         <Input
           label="Correo institucional"
           type="email"
           name="correo"
           required
+          maxLength={100}
           value={valores.correo}
           onChange={handleChange}
           placeholder="nombre@uta.edu.ec"

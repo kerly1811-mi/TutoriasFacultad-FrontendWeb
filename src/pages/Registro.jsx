@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useForm } from '../hooks/useForm';
+import { cedulaValida } from '../lib/validadores';
 import AuthLayout from '../components/layout/AuthLayout';
 import { Alert, Button, Input } from '../components/ui';
 
@@ -16,11 +17,17 @@ export default function Registro() {
     password: '',
   });
   const [exito, setExito] = useState(false);
+  const [errorCedula, setErrorCedula] = useState(null);
   const { registrar, cargando, error } = useAuth();
   const navigate = useNavigate();
 
   async function manejarEnvio(e) {
     e.preventDefault();
+    if (!cedulaValida(valores.cedula)) {
+      setErrorCedula('La cédula ingresada no es válida.');
+      return;
+    }
+    setErrorCedula(null);
     const ok = await registrar(valores);
     if (ok) {
       setExito(true);
@@ -55,15 +62,20 @@ export default function Registro() {
           maxLength={10}
           title="La cédula debe tener 10 dígitos numéricos."
           value={valores.cedula}
-          onChange={handleChange}
+          onChange={(e) => {
+            setErrorCedula(null);
+            handleChange(e);
+          }}
+          error={errorCedula}
         />
 
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Nombres" name="nombres" required value={valores.nombres} onChange={handleChange} />
+          <Input label="Nombres" name="nombres" required maxLength={100} value={valores.nombres} onChange={handleChange} />
           <Input
             label="Apellidos"
             name="apellidos"
             required
+            maxLength={100}
             value={valores.apellidos}
             onChange={handleChange}
           />
@@ -74,6 +86,7 @@ export default function Registro() {
           type="email"
           name="correo"
           required
+          maxLength={100}
           value={valores.correo}
           onChange={handleChange}
           placeholder="nombre@uta.edu.ec"

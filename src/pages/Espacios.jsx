@@ -6,8 +6,10 @@ import { useForm } from '../hooks/useForm';
 import { espaciosApi } from '../api/endpoints/espacios';
 import {
   ETIQUETA_BLOQUE,
+  ETIQUETA_ESTADO_ACTIVO,
   ETIQUETA_ESTADO_ESPACIO,
   ETIQUETA_TIPO_ESPACIO,
+  ESTILO_ESTADO_ACTIVO,
   ESTILO_ESTADO_ESPACIO,
   OPCIONES_BLOQUE,
   OPCIONES_ESTADO_ESPACIO,
@@ -32,27 +34,37 @@ import {
 export default function Espacios() {
   const { mostrarToast } = useToast();
   const [modal, setModal] = useState(null); // null | { espacio? }
-  const [aEliminar, setAEliminar] = useState(null);
-  const [eliminando, setEliminando] = useState(false);
+  const [aDeshabilitar, setADeshabilitar] = useState(null);
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
 
-  const cargar = useCallback(() => espaciosApi.listar(), []);
+  const cargar = useCallback(() => espaciosApi.listar({ incluirInactivos: true }), []);
   const { data, cargando, error, recargar } = useApiResource(cargar, {
     mensajeError: 'No se pudieron cargar los espacios.',
   });
   const espacios = data ?? [];
 
-  async function confirmarEliminar() {
-    if (!aEliminar) return;
-    setEliminando(true);
+  async function confirmarDeshabilitar() {
+    if (!aDeshabilitar) return;
+    setCambiandoEstado(true);
     try {
-      await espaciosApi.eliminar(aEliminar.id_esp);
+      await espaciosApi.cambiarEstado(aDeshabilitar.id_esp, false);
       recargar();
-      mostrarToast(`Espacio "${aEliminar.nom_esp}" eliminado.`, 'exito');
+      mostrarToast(`Espacio "${aDeshabilitar.nom_esp}" deshabilitado.`, 'exito');
     } catch (err) {
-      mostrarToast(mensajeDeError(err, 'No se pudo eliminar el espacio.'), 'error');
+      mostrarToast(mensajeDeError(err, 'No se pudo deshabilitar el espacio.'), 'error');
     } finally {
-      setEliminando(false);
-      setAEliminar(null);
+      setCambiandoEstado(false);
+      setADeshabilitar(null);
+    }
+  }
+
+  async function habilitar(esp) {
+    try {
+      await espaciosApi.cambiarEstado(esp.id_esp, true);
+      recargar();
+      mostrarToast(`Espacio "${esp.nom_esp}" habilitado.`, 'exito');
+    } catch (err) {
+      mostrarToast(mensajeDeError(err, 'No se pudo habilitar el espacio.'), 'error');
     }
   }
 
@@ -81,14 +93,19 @@ export default function Espacios() {
           mensajeVacio="Aún no hay espacios registrados."
         >
           {espacios.map((esp) => (
-            <Card key={esp.id_esp}>
+            <Card key={esp.id_esp} className={esp.activo ? '' : 'opacity-60'}>
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] uppercase tracking-wide text-celeste-dark font-medium">
                   {ETIQUETA_TIPO_ESPACIO[esp.tipo] || esp.tipo}
                 </span>
-                <Badge className={ESTILO_ESTADO_ESPACIO[esp.estado] || ''}>
-                  {ETIQUETA_ESTADO_ESPACIO[esp.estado] || esp.estado}
-                </Badge>
+                <div className="flex gap-1">
+                  {!esp.activo && (
+                    <Badge className={ESTILO_ESTADO_ACTIVO.false}>{ETIQUETA_ESTADO_ACTIVO.false}</Badge>
+                  )}
+                  <Badge className={ESTILO_ESTADO_ESPACIO[esp.estado] || ''}>
+                    {ETIQUETA_ESTADO_ESPACIO[esp.estado] || esp.estado}
+                  </Badge>
+                </div>
               </div>
               <p className="font-display text-lg text-ink mt-1">{esp.nom_esp}</p>
               <p className="text-sm text-ink/60 mt-1">
@@ -104,9 +121,15 @@ export default function Espacios() {
                 <button onClick={() => alternarMantenimiento(esp)} className="text-ink/70 font-medium hover:underline">
                   {esp.estado === 'MANTENIMIENTO' ? 'Marcar disponible' : 'Poner en mantenimiento'}
                 </button>
-                <button onClick={() => setAEliminar(esp)} className="text-danger font-medium hover:underline">
-                  Eliminar
-                </button>
+                {esp.activo ? (
+                  <button onClick={() => setADeshabilitar(esp)} className="text-danger font-medium hover:underline">
+                    Deshabilitar
+                  </button>
+                ) : (
+                  <button onClick={() => habilitar(esp)} className="text-success font-medium hover:underline">
+                    Habilitar
+                  </button>
+                )}
               </div>
             </Card>
           ))}
@@ -131,14 +154,18 @@ export default function Espacios() {
       </Modal>
 
       <ConfirmDialog
-        abierto={Boolean(aEliminar)}
-        titulo="Eliminar espacio"
-        mensaje={aEliminar ? `¿Eliminar "${aEliminar.nom_esp}"? Esta acción no se puede deshacer.` : ''}
-        textoConfirmar="Eliminar"
-        textoCargando="Eliminando…"
-        cargando={eliminando}
-        onConfirmar={confirmarEliminar}
-        onCancelar={() => setAEliminar(null)}
+        abierto={Boolean(aDeshabilitar)}
+        titulo="Deshabilitar espacio"
+        mensaje={
+          aDeshabilitar
+            ? `¿Deshabilitar "${aDeshabilitar.nom_esp}"? Dejará de ofrecerse para reservar. Puedes volver a habilitarlo cuando quieras.`
+            : ''
+        }
+        textoConfirmar="Deshabilitar"
+        textoCargando="Deshabilitando…"
+        cargando={cambiandoEstado}
+        onConfirmar={confirmarDeshabilitar}
+        onCancelar={() => setADeshabilitar(null)}
       />
     </Layout>
   );
@@ -186,6 +213,7 @@ function FormularioEspacio({ espacio, onCancelar, onListo }) {
           label="Nombre del espacio"
           name="nom_esp"
           required
+          maxLength={100}
           value={valores.nom_esp}
           onChange={handleChange}
           placeholder="Laboratorio de Redes"
