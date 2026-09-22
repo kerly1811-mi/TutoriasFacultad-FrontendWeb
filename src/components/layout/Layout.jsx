@@ -113,8 +113,8 @@ function IconoSalir() {
 
 function LogoFISEI() {
   return (
-    <span className="flex items-center justify-center w-8 h-8 rounded-md bg-celeste/20 text-celeste-light shrink-0">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-white text-azul shrink-0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 8.5 12 4l10 4.5-10 4.5-10-4.5Z" />
         <path d="M6 10.5V15c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5" />
         <path d="M22 8.5v6" />
@@ -123,10 +123,11 @@ function LogoFISEI() {
   );
 }
 
-function IconoColapsar({ colapsado }) {
+function IconoPanelLateral() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {colapsado ? <polyline points="9 6 15 12 9 18" /> : <polyline points="15 6 9 12 15 18" />}
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="9.5" y1="4" x2="9.5" y2="20" />
     </svg>
   );
 }
@@ -154,6 +155,18 @@ export default function Layout({ children }) {
       return false;
     }
   });
+  // Pantalla "a la mitad" (tablet): la barra lateral se muestra siempre,
+  // pero angosta (solo íconos), sin importar la preferencia de colapsado.
+  const [esTablet, setEsTablet] = useState(
+    () => window.matchMedia('(min-width: 768px) and (max-width: 1023px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+    const actualizar = () => setEsTablet(mq.matches);
+    mq.addEventListener('change', actualizar);
+    return () => mq.removeEventListener('change', actualizar);
+  }, []);
+  const colapsadoVisual = colapsado || esTablet;
 
   // Cerrar el menú móvil con la tecla Escape.
   useEffect(() => {
@@ -204,10 +217,10 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-paper lg:flex">
-      {/* Barra superior (solo móvil/tablet): título + botón de menú */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between bg-azul-dark px-4 py-3">
-        <p className="font-display text-lg text-white">Espacios FISEI</p>
+    <div className="min-h-screen bg-paper md:flex">
+      {/* Barra superior (solo móvil): título + botón de menú */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-azul-dark px-4 py-3">
+        <p className="font-display text-lg font-semibold text-white">FISEI</p>
         <button
           type="button"
           onClick={() => setMenuAbierto((v) => !v)}
@@ -221,71 +234,51 @@ export default function Layout({ children }) {
       {/* Fondo oscuro al abrir el menú en móvil */}
       {menuAbierto && (
         <div
-          className="fixed inset-0 z-40 bg-ink/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-ink/40 md:hidden"
           onClick={() => setMenuAbierto(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Barra lateral: fija/deslizante en móvil, pegada al viewport (sticky) en escritorio */}
+      {/* Barra lateral: fija/deslizante en móvil, pegada al viewport (sticky) desde tablet;
+          angosta (solo íconos) en tablet siempre, y en escritorio si el usuario la colapsó. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 shrink-0 bg-azul-dark flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-[transform,width] duration-200 lg:sticky lg:top-0 lg:h-screen lg:z-auto lg:translate-x-0 ${
-          colapsado ? 'lg:w-[74px]' : 'lg:w-64'
+        className={`fixed inset-y-0 left-0 z-50 w-56 shrink-0 bg-azul-dark flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-[transform,width] duration-200 md:sticky md:top-0 md:h-screen md:z-auto md:translate-x-0 ${
+          colapsadoVisual ? 'md:w-[74px]' : 'md:w-56'
         } ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div>
-          <div className={`px-6 pt-6 pb-5 border-b border-white/10 ${colapsado ? 'lg:px-3' : ''}`}>
-            <div className={`flex items-center justify-between ${colapsado ? 'lg:justify-center' : ''}`}>
-              <div className={`flex items-center gap-2.5 min-w-0 ${colapsado ? 'lg:justify-center' : ''}`}>
+          <div className={`px-6 pt-6 pb-5 border-b border-white/10 ${colapsadoVisual ? 'md:px-3' : ''}`}>
+            <div className={`flex items-center justify-between ${colapsadoVisual ? 'md:justify-center' : ''}`}>
+              <div className={`flex items-center gap-2.5 min-w-0 ${colapsadoVisual ? 'md:justify-center' : ''}`}>
                 <LogoFISEI />
-                {!colapsado && (
-                  <p className="font-display text-lg text-white leading-tight truncate">Espacios FISEI</p>
+                {!colapsadoVisual && (
+                  <div className="min-w-0 leading-tight">
+                    <p className="font-display text-lg font-semibold text-white truncate">FISEI</p>
+                    <p className="text-xs text-paper/60 truncate">Sistema de Reservas</p>
+                  </div>
                 )}
               </div>
-
-              {!colapsado && (
-                <button
-                  type="button"
-                  onClick={alternarColapso}
-                  title="Colapsar menú"
-                  className="hidden lg:flex shrink-0 text-white/60 hover:text-white transition-colors"
-                >
-                  <IconoColapsar colapsado={colapsado} />
-                </button>
-              )}
 
               <button
                 type="button"
                 onClick={() => setMenuAbierto(false)}
                 aria-label="Cerrar menú"
-                className="lg:hidden text-white/70 hover:text-white"
+                className="md:hidden text-white/70 hover:text-white"
               >
                 <IconoMenu abierto />
               </button>
             </div>
-
-            {!colapsado && <p className="text-xs text-paper/50 mt-1">Gestión de aulas y tutorías</p>}
-
-            {colapsado && (
-              <button
-                type="button"
-                onClick={alternarColapso}
-                title="Expandir menú"
-                className="hidden lg:flex w-full justify-center text-white/60 hover:text-white transition-colors mt-4"
-              >
-                <IconoColapsar colapsado={colapsado} />
-              </button>
-            )}
           </div>
 
-          <nav className={`p-4 space-y-1 ${colapsado ? 'lg:px-3' : ''}`}>
+          <nav className={`p-4 space-y-1 ${colapsadoVisual ? 'md:px-3' : ''}`}>
             {itemsVisibles.map((item) =>
               item.submenu ? (
                 <ItemGrupoNav
                   key={item.to}
                   item={item}
                   icono={<IconoNav ruta={item.to} />}
-                  colapsado={colapsado}
+                  colapsado={colapsadoVisual}
                   activo={item.submenu.some((s) => s.to === location.pathname)}
                   abierto={grupoAbierto(item)}
                   onAlternar={() => alternarGrupo(item)}
@@ -296,7 +289,7 @@ export default function Layout({ children }) {
                   key={item.to}
                   to={item.to}
                   icono={<IconoNav ruta={item.to} />}
-                  colapsado={colapsado}
+                  colapsado={colapsadoVisual}
                   onNavegar={() => setMenuAbierto(false)}
                 >
                   {typeof item.etiqueta === 'function' ? item.etiqueta(usuario?.rol) : item.etiqueta}
@@ -306,25 +299,33 @@ export default function Layout({ children }) {
           </nav>
         </div>
 
-        <div className={`p-4 border-t border-white/10 ${colapsado ? 'lg:px-3' : ''}`}>
+        <div className={`p-4 border-t border-white/10 ${colapsadoVisual ? 'md:px-3' : ''}`}>
           <button
             onClick={salir}
-            title={colapsado ? 'Cerrar sesión' : undefined}
+            title={colapsadoVisual ? 'Cerrar sesión' : undefined}
             className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm text-paper/70 hover:bg-white/5 hover:text-white transition-colors ${
-              colapsado ? 'lg:justify-center lg:px-0' : ''
+              colapsadoVisual ? 'md:justify-center md:px-0' : ''
             }`}
           >
             <IconoSalir />
-            <span className={colapsado ? 'lg:hidden' : ''}>Cerrar sesión</span>
+            <span className={colapsadoVisual ? 'md:hidden' : ''}>Cerrar sesión</span>
           </button>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Barra superior (escritorio): sección actual + notificaciones + perfil */}
-        <header className="hidden lg:flex items-center justify-between gap-4 bg-white border-b border-line px-8 py-3.5 sticky top-0 z-20">
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-wide text-ink/40 font-medium">Espacios FISEI</p>
+        {/* Barra superior (desde tablet): sección actual + notificaciones + perfil */}
+        <header className="hidden md:flex items-center justify-between gap-4 bg-white border-b border-line px-8 py-3.5 sticky top-0 z-20">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              type="button"
+              onClick={alternarColapso}
+              title={colapsado ? 'Expandir menú' : 'Colapsar menú'}
+              className="shrink-0 text-ink/40 hover:text-ink/70 transition-colors"
+            >
+              <IconoPanelLateral />
+            </button>
+            <div className="w-px h-6 bg-line shrink-0" />
             <p className="text-sm font-medium text-ink truncate">{etiquetaSeccion}</p>
           </div>
 
@@ -346,7 +347,7 @@ export default function Layout({ children }) {
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-5 sm:px-8 py-8 sm:py-10">{children}</div>
+          <div className="max-w-[1600px] px-5 sm:px-8 py-4 sm:py-5">{children}</div>
         </main>
       </div>
     </div>

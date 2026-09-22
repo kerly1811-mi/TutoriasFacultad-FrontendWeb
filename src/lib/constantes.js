@@ -13,10 +13,10 @@ export const ETIQUETA_ROL = {
 
 // Texto de bienvenida por rol que se muestra en el panel.
 export const DESCRIPCION_ROL = {
-  ESTUDIANTE: 'Consulta qué tutorías están habilitadas y en qué aula.',
-  DOCENTE: 'Busca un horario libre y reserva un espacio para tus tutorías.',
-  ADMINISTRADOR: 'Administra los usuarios, las carreras, materias, paralelos, matrículas y los reportes.',
-  LABORATORISTA: 'Administra los espacios, carga los horarios de clases y controla la ocupación de las aulas.',
+  ESTUDIANTE: 'Tus tutorías y horarios, al día.',
+  DOCENTE: 'Gestiona tus tutorías y reservas.',
+  ADMINISTRADOR: 'Resumen general del sistema.',
+  LABORATORISTA: 'Espacios y ocupación, bajo control.',
 };
 
 // --- Tipos de espacio (enum TipoEspacio) ---
