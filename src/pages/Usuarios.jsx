@@ -6,7 +6,7 @@ import { usuariosApi } from '../api/endpoints/usuarios';
 import { ETIQUETA_ESTADO_ACTIVO, ESTILO_ESTADO_ACTIVO, ETIQUETA_ROL, OPCIONES_ROL_GESTIONABLE } from '../lib/constantes';
 import { mensajeDeError } from '../lib/formato';
 import { cedulaValida } from '../lib/validadores';
-import { Alert, Badge, Button, ConfirmDialog, Input, Modal, Select, Table } from '../components/ui';
+import { Alert, Badge, Button, ConfirmDialog, Input, Modal, Select, Table, normalizarBusqueda } from '../components/ui';
 import { AdminPageTemplate } from '../components/admin';
 import { useToast } from '../context/ToastContext';
 
@@ -40,10 +40,11 @@ export default function Usuarios() {
 
   // Filtrado reactivo en memoria
   const usuariosFiltrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
+    const palabras = normalizarBusqueda(busqueda).split(/\s+/).filter(Boolean);
     return usuarios.filter((u) => {
-      const texto = `${u.nombres || ''} ${u.apellidos || ''} ${u.cedula || ''} ${u.correo || ''}`.toLowerCase();
-      const coincideBusqueda = !q || texto.includes(q);
+      // Sin importar tildes ni mayúsculas, y cada palabra por separado ("clay aldas").
+      const texto = normalizarBusqueda(`${u.nombres || ''} ${u.apellidos || ''} ${u.cedula || ''} ${u.correo || ''}`);
+      const coincideBusqueda = palabras.every((p) => texto.includes(p));
       const coincideRol = filtroRol === 'TODOS' || u.rol === filtroRol;
       const coincideEstado =
         filtroEstado === 'TODOS' || (filtroEstado === 'ACTIVO' ? u.activo : !u.activo);
@@ -108,10 +109,10 @@ export default function Usuarios() {
             <Select
               value={filtroRol}
               onChange={(e) => setFiltroRol(e.target.value)}
-              opciones={[
-                { valor: 'TODOS', etiqueta: 'Todos los roles' },
+              options={[
+                { value: 'TODOS', label: 'Todos los roles' },
                 ...OPCIONES_ROL_GESTIONABLE,
-                { valor: 'ESTUDIANTE', etiqueta: 'Estudiante' },
+                { value: 'ESTUDIANTE', label: 'Estudiante' },
               ]}
             />
           </div>
@@ -119,15 +120,16 @@ export default function Usuarios() {
             <Select
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
-              opciones={[
-                { valor: 'TODOS', etiqueta: 'Todos los estados' },
-                { valor: 'ACTIVO', etiqueta: 'Activos' },
-                { valor: 'INACTIVO', etiqueta: 'Inactivos' },
+              options={[
+                { value: 'TODOS', label: 'Todos los estados' },
+                { value: 'ACTIVO', label: 'Activos' },
+                { value: 'INACTIVO', label: 'Inactivos' },
               ]}
             />
           </div>
         </>
       }
+      hayFiltrosActivos={Boolean(busqueda.trim()) || filtroRol !== 'TODOS' || filtroEstado !== 'TODOS'}
       totalResultados={usuariosFiltrados.length}
       totalTotal={usuarios.length}
       onLimpiarFiltros={() => {

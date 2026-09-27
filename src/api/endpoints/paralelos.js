@@ -2,7 +2,8 @@ import api from '../client';
 
 // Wrappers sobre /api/paralelos.
 export const paralelosApi = {
-  // GET /api/paralelos?id_niv=&id_doc= -> Paralelo[] (incluye `materia`, `nivel.carrera`, `docente`)
+  // GET /api/paralelos?id_niv=&id_doc=&id_car=&conHorarios=1 -> Paralelo[]
+  // (incluye `materia`, `nivel.carrera`, `docente`; con conHorarios también `horarios` y `_count.matriculas`)
   listar: (params) => api.get('/paralelos', { params }).then((res) => res.data),
 
   // POST /api/paralelos (ADMIN) -> { mensaje, paralelo }

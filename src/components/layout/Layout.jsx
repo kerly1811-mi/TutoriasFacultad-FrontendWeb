@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ETIQUETA_ROL } from '../../lib/constantes';
@@ -39,14 +40,64 @@ function IconoFlechaGrupo() {
 }
 
 function ItemGrupoNav({ item, icono, colapsado, activo, abierto, onAlternar, onNavegar }) {
+  // Con la barra contraída (solo íconos) el submenú no cabe debajo: se abre un menú
+  // flotante a la derecha del ícono. Se monta en <body> (portal) porque la barra lateral
+  // recorta lo que sobresale y su `transform` haría que `fixed` quede relativo a ella.
+  const [flotante, setFlotante] = useState(null); // null | { top, left }
+  const botonRef = useRef(null);
+  const flotanteRef = useRef(null);
+
+  useEffect(() => {
+    if (!flotante) return undefined;
+    const cerrar = () => setFlotante(null);
+    function alPulsarFuera(e) {
+      if (!flotanteRef.current?.contains(e.target) && !botonRef.current?.contains(e.target)) cerrar();
+    }
+    function alPulsarTecla(e) {
+      if (e.key === 'Escape') cerrar();
+    }
+    document.addEventListener('mousedown', alPulsarFuera);
+    document.addEventListener('keydown', alPulsarTecla);
+    window.addEventListener('resize', cerrar);
+    window.addEventListener('scroll', cerrar, true);
+    return () => {
+      document.removeEventListener('mousedown', alPulsarFuera);
+      document.removeEventListener('keydown', alPulsarTecla);
+      window.removeEventListener('resize', cerrar);
+      window.removeEventListener('scroll', cerrar, true);
+    };
+  }, [flotante]);
+
+  // Si la barra se expande con el menú flotante abierto, se cierra.
+  useEffect(() => {
+    if (!colapsado) setFlotante(null);
+  }, [colapsado]);
+
+  function alPulsar() {
+    if (!colapsado) {
+      onAlternar();
+      return;
+    }
+    if (flotante) {
+      setFlotante(null);
+      return;
+    }
+    const r = botonRef.current.getBoundingClientRect();
+    setFlotante({ top: r.top, left: r.right + 8 });
+  }
+
   return (
     <div>
       <button
+        ref={botonRef}
         type="button"
-        onClick={onAlternar}
+        onClick={alPulsar}
         title={colapsado ? item.etiqueta : undefined}
+        aria-haspopup={colapsado ? 'menu' : undefined}
+        aria-expanded={colapsado ? Boolean(flotante) : abierto}
         className={`w-full flex items-center gap-3 rounded-md px-4 py-2.5 text-sm transition-colors ${colapsado ? 'justify-center px-0' : ''
-          } ${activo ? 'text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'}`}
+          } ${activo ? 'text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'} ${colapsado && (activo || flotante) ? 'bg-white/10' : ''
+          }`}
       >
         <span className="shrink-0">{icono}</span>
         {!colapsado && (
@@ -76,6 +127,37 @@ function ItemGrupoNav({ item, icono, colapsado, activo, abierto, onAlternar, onN
           ))}
         </div>
       )}
+
+      {colapsado &&
+        flotante &&
+        createPortal(
+          <div
+            ref={flotanteRef}
+            role="menu"
+            style={{ top: flotante.top, left: flotante.left }}
+            className="fixed z-[60] min-w-44 rounded-md bg-azul-dark border border-white/10 shadow-lg py-1.5"
+          >
+            <p className="px-3 pt-1 pb-1.5 text-[11px] uppercase tracking-wide text-paper/50">{item.etiqueta}</p>
+            {item.submenu.map((sub) => (
+              <NavLink
+                key={sub.to}
+                to={sub.to}
+                role="menuitem"
+                onClick={() => {
+                  setFlotante(null);
+                  onNavegar?.();
+                }}
+                className={({ isActive }) =>
+                  `block mx-1.5 rounded-md px-3 py-2 text-sm transition-colors ${isActive ? 'bg-white/10 text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'
+                  }`
+                }
+              >
+                {sub.etiqueta}
+              </NavLink>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

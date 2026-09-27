@@ -5,7 +5,7 @@ import { reservasApi } from '../../api/endpoints/reservas';
 import { solicitudesApi } from '../../api/endpoints/solicitudes';
 import { disponibilidadApi } from '../../api/endpoints/disponibilidad';
 import { claveDia, fechaISO, horaEnMinutos } from '../../lib/formato';
-import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO } from '../../lib/constantes';
+import { ETIQUETA_TIPO_ESPACIO, ubicacionEspacio } from '../../lib/constantes';
 import { Badge, Card, DataState, Input, Table } from '../ui';
 import { IconoNav } from '../layout/IconosNav';
 import StatTile from './StatTile';
@@ -158,7 +158,7 @@ export default function PanelLaboratorista() {
                     <Badge className={ESTILO_ESTADO_VIVO[estadoVivo(e)]}>{estadoVivo(e)}</Badge>
                   </td>
                   <td className="px-5 py-3 text-ink/60">
-                    {e.bloque ? `${ETIQUETA_BLOQUE[e.bloque] || e.bloque} · Piso ${e.piso}` : '—'}
+                    {ubicacionEspacio(e) || '—'}
                   </td>
                 </tr>
               )}

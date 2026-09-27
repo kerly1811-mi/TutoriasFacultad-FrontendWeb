@@ -46,6 +46,14 @@ export const OPCIONES_BLOQUE = BLOQUES_ESPACIO.map((valor) => ({
   label: ETIQUETA_BLOQUE[valor],
 }));
 
+// "Bloque 1 · Piso 3"; sin piso registrado -> solo "Bloque 1" (nunca "Piso null").
+export function ubicacionEspacio({ bloque, piso } = {}) {
+  const partes = [];
+  if (bloque) partes.push(ETIQUETA_BLOQUE[bloque] || bloque);
+  if (piso) partes.push(`Piso ${piso}`);
+  return partes.join(' · ');
+}
+
 export function opcionesPisoPara(bloque) {
   return (PISOS_POR_BLOQUE[bloque] || []).map((piso) => ({ value: piso, label: piso }));
 }
@@ -86,7 +94,8 @@ export const ESTILO_ESTADO_RESERVA = {
 };
 
 // --- Días de la semana (coinciden con utils/tiempo.js del backend) ---
-export const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+// Días con clases: lunes a viernes (sábado y domingo la facultad no tiene clases).
+export const DIAS_SEMANA = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
 
 export const ETIQUETA_DIA = {
   LUNES: 'Lunes',

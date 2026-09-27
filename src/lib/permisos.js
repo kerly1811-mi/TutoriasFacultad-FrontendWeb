@@ -6,11 +6,13 @@ export const NAV = [
   { to: '/dashboard', etiqueta: 'Panel', roles: ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'] },
 
   // Estudiante
+  { to: '/matricula', etiqueta: 'Matrícula', roles: ['ESTUDIANTE'] },
   { to: '/tutorias', etiqueta: 'Cursos', roles: ['ESTUDIANTE'] },
   { to: '/mis-horarios', etiqueta: 'Horarios', roles: ['ESTUDIANTE'] },
   { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
 
   // Docente
+  { to: '/mis-clases', etiqueta: 'Mis clases', roles: ['DOCENTE'] },
   { to: '/reservas', etiqueta: 'Reservar un espacio', roles: ['DOCENTE'] },
 
   // Laboratorista
@@ -60,6 +62,8 @@ export const ACCESO_RUTA = {
   '/solicitudes': ['DOCENTE', 'ESTUDIANTE'],
   '/mis-horarios': ['ESTUDIANTE'],
   '/mis-tutorias': ['ESTUDIANTE'],
+  '/matricula': ['ESTUDIANTE'],
+  '/mis-clases': ['DOCENTE'],
   '/reportes': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
 };
 

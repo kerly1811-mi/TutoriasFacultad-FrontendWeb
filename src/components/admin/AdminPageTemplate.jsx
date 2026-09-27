@@ -94,6 +94,7 @@ export default function AdminPageTemplate({
   totalResultados,
   totalTotal,
   onLimpiarFiltros,
+  hayFiltrosActivos,
   accionesBarra,
   cargando = false,
   error = null,
@@ -105,7 +106,8 @@ export default function AdminPageTemplate({
   modales,
   children,
 }) {
-  const tieneFiltrosActivos = Boolean(busqueda?.trim());
+  // Por defecto solo cuenta la búsqueda; la página puede avisar si además hay filtros (selects) activos.
+  const tieneFiltrosActivos = hayFiltrosActivos ?? Boolean(busqueda?.trim());
 
   return (
     <div className="space-y-6">
@@ -254,7 +256,7 @@ export default function AdminPageTemplate({
             </Card>
           )
         ) : error ? (
-          <Alert variant="danger">
+          <Alert variant="error">
             <div className="flex items-center justify-between gap-4">
               <span>{error}</span>
               {onReintentar && (

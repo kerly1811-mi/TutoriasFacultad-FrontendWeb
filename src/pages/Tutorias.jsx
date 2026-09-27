@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import Layout from '../components/layout/Layout';
 import { useApiResource } from '../hooks/useApiResource';
 import { tutoriasApi } from '../api/endpoints/tutorias';
-import { ETIQUETA_BLOQUE } from '../lib/constantes';
+import { ubicacionEspacio } from '../lib/constantes';
 import { ahoraComoNaive, formatearFecha, formatearRango, instanteDeReserva } from '../lib/formato';
 import { Card, DataState, PageHeader, SkeletonCards } from '../components/ui';
 
@@ -60,9 +60,7 @@ export default function Tutorias() {
                     <p className="font-display text-base text-ink mt-0.5">{t.tema}</p>
                     <p className="text-sm text-ink/70 mt-1">{t.aula}</p>
                     {t.bloque && (
-                      <p className="text-xs text-ink/50">
-                        {ETIQUETA_BLOQUE[t.bloque] || t.bloque} · Piso {t.piso}
-                      </p>
+                      <p className="text-xs text-ink/50">{ubicacionEspacio(t)}</p>
                     )}
                   </Card>
                 ))}
