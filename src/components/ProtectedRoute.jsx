@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { INICIO_POR_ROL } from '../lib/permisos';
 
@@ -16,5 +16,5 @@ export default function ProtectedRoute({ children, rolesPermitidos }) {
     return <Navigate to={INICIO_POR_ROL[usuario.rol] || '/dashboard'} replace />;
   }
 
-  return children;
+  return children || <Outlet />;
 }

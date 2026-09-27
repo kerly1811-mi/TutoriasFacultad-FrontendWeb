@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ETIQUETA_ROL } from '../../lib/constantes';
 import { NAV, puede } from '../../lib/permisos';
 import { IconoNav } from './IconosNav';
 import NotificacionesMenu from './NotificacionesMenu';
+
+const LayoutContext = createContext(false);
 
 const CLAVE_COLAPSADO = 'sidebar_colapsado';
 
@@ -15,12 +17,10 @@ function ItemNav({ to, icono, colapsado, children, onNavegar }) {
       onClick={onNavegar}
       title={colapsado ? children : undefined}
       className={({ isActive }) =>
-        `flex items-center gap-3 rounded-md px-4 py-2.5 text-sm transition-colors ${
-          colapsado ? 'justify-center px-0' : ''
-        } ${
-          isActive
-            ? 'bg-white/10 text-white font-medium'
-            : 'text-paper/70 hover:bg-white/5 hover:text-white'
+        `flex items-center gap-3 rounded-md px-4 py-2.5 text-sm transition-colors ${colapsado ? 'justify-center px-0' : ''
+        } ${isActive
+          ? 'bg-white/10 text-white font-medium'
+          : 'text-paper/70 hover:bg-white/5 hover:text-white'
         }`
       }
     >
@@ -45,9 +45,8 @@ function ItemGrupoNav({ item, icono, colapsado, activo, abierto, onAlternar, onN
         type="button"
         onClick={onAlternar}
         title={colapsado ? item.etiqueta : undefined}
-        className={`w-full flex items-center gap-3 rounded-md px-4 py-2.5 text-sm transition-colors ${
-          colapsado ? 'justify-center px-0' : ''
-        } ${activo ? 'text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'}`}
+        className={`w-full flex items-center gap-3 rounded-md px-4 py-2.5 text-sm transition-colors ${colapsado ? 'justify-center px-0' : ''
+          } ${activo ? 'text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'}`}
       >
         <span className="shrink-0">{icono}</span>
         {!colapsado && (
@@ -68,8 +67,7 @@ function ItemGrupoNav({ item, icono, colapsado, activo, abierto, onAlternar, onN
               to={sub.to}
               onClick={onNavegar}
               className={({ isActive }) =>
-                `block rounded-md px-3 py-2 text-sm transition-colors ${
-                  isActive ? 'bg-white/10 text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'
+                `block rounded-md px-3 py-2 text-sm transition-colors ${isActive ? 'bg-white/10 text-white font-medium' : 'text-paper/70 hover:bg-white/5 hover:text-white'
                 }`
               }
             >
@@ -143,6 +141,15 @@ function inicialesDe(nombre) {
 }
 
 export default function Layout({ children }) {
+  const yaEnLayout = useContext(LayoutContext);
+  if (yaEnLayout) {
+    return <>{children}</>;
+  }
+
+  return <LayoutPrincipal>{children}</LayoutPrincipal>;
+}
+
+function LayoutPrincipal({ children }) {
   const { usuario, cerrarSesion } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -217,139 +224,139 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-paper md:flex">
-      {/* Barra superior (solo móvil): título + botón de menú */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-azul-dark px-4 py-3">
-        <p className="font-display text-lg font-semibold text-white">FISEI</p>
-        <button
-          type="button"
-          onClick={() => setMenuAbierto((v) => !v)}
-          aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
-          className="text-white p-1"
-        >
-          <IconoMenu abierto={menuAbierto} />
-        </button>
-      </header>
-
-      {/* Fondo oscuro al abrir el menú en móvil */}
-      {menuAbierto && (
-        <div
-          className="fixed inset-0 z-40 bg-ink/40 md:hidden"
-          onClick={() => setMenuAbierto(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Barra lateral: fija/deslizante en móvil, pegada al viewport (sticky) desde tablet;
-          angosta (solo íconos) en tablet siempre, y en escritorio si el usuario la colapsó. */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-56 shrink-0 bg-azul-dark flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-[transform,width] duration-200 md:sticky md:top-0 md:h-screen md:z-auto md:translate-x-0 ${
-          colapsadoVisual ? 'md:w-[74px]' : 'md:w-56'
-        } ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}`}
-      >
-        <div>
-          <div className={`px-6 pt-6 pb-5 border-b border-white/10 ${colapsadoVisual ? 'md:px-3' : ''}`}>
-            <div className={`flex items-center justify-between ${colapsadoVisual ? 'md:justify-center' : ''}`}>
-              <div className={`flex items-center gap-2.5 min-w-0 ${colapsadoVisual ? 'md:justify-center' : ''}`}>
-                <LogoFISEI />
-                {!colapsadoVisual && (
-                  <div className="min-w-0 leading-tight">
-                    <p className="font-display text-lg font-semibold text-white truncate">FISEI</p>
-                    <p className="text-xs text-paper/60 truncate">Sistema de Reservas</p>
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setMenuAbierto(false)}
-                aria-label="Cerrar menú"
-                className="md:hidden text-white/70 hover:text-white"
-              >
-                <IconoMenu abierto />
-              </button>
-            </div>
-          </div>
-
-          <nav className={`p-4 space-y-1 ${colapsadoVisual ? 'md:px-3' : ''}`}>
-            {itemsVisibles.map((item) =>
-              item.submenu ? (
-                <ItemGrupoNav
-                  key={item.to}
-                  item={item}
-                  icono={<IconoNav ruta={item.to} />}
-                  colapsado={colapsadoVisual}
-                  activo={item.submenu.some((s) => s.to === location.pathname)}
-                  abierto={grupoAbierto(item)}
-                  onAlternar={() => alternarGrupo(item)}
-                  onNavegar={() => setMenuAbierto(false)}
-                />
-              ) : (
-                <ItemNav
-                  key={item.to}
-                  to={item.to}
-                  icono={<IconoNav ruta={item.to} />}
-                  colapsado={colapsadoVisual}
-                  onNavegar={() => setMenuAbierto(false)}
-                >
-                  {typeof item.etiqueta === 'function' ? item.etiqueta(usuario?.rol) : item.etiqueta}
-                </ItemNav>
-              )
-            )}
-          </nav>
-        </div>
-
-        <div className={`p-4 border-t border-white/10 ${colapsadoVisual ? 'md:px-3' : ''}`}>
+    <LayoutContext.Provider value={true}>
+      <div className="min-h-screen bg-paper md:flex">
+        {/* Barra superior (solo móvil): título + botón de menú */}
+        <header className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-azul-dark px-4 py-3">
+          <p className="font-display text-lg font-semibold text-white">FISEI</p>
           <button
-            onClick={salir}
-            title={colapsadoVisual ? 'Cerrar sesión' : undefined}
-            className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm text-paper/70 hover:bg-white/5 hover:text-white transition-colors ${
-              colapsadoVisual ? 'md:justify-center md:px-0' : ''
-            }`}
+            type="button"
+            onClick={() => setMenuAbierto((v) => !v)}
+            aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
+            className="text-white p-1"
           >
-            <IconoSalir />
-            <span className={colapsadoVisual ? 'md:hidden' : ''}>Cerrar sesión</span>
+            <IconoMenu abierto={menuAbierto} />
           </button>
-        </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Barra superior (desde tablet): sección actual + notificaciones + perfil */}
-        <header className="hidden md:flex items-center justify-between gap-4 bg-white border-b border-line px-8 py-3.5 sticky top-0 z-20">
-          <div className="flex items-center gap-4 min-w-0">
-            <button
-              type="button"
-              onClick={alternarColapso}
-              title={colapsado ? 'Expandir menú' : 'Colapsar menú'}
-              className="shrink-0 text-ink/40 hover:text-ink/70 transition-colors"
-            >
-              <IconoPanelLateral />
-            </button>
-            <div className="w-px h-6 bg-line shrink-0" />
-            <p className="text-sm font-medium text-ink truncate">{etiquetaSeccion}</p>
-          </div>
-
-          <div className="flex items-center gap-4 shrink-0">
-            <NotificacionesMenu />
-
-            <div className="w-px h-6 bg-line" />
-
-            <div className="flex items-center gap-2.5">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-celeste/15 text-celeste-dark text-xs font-semibold shrink-0">
-                {inicialesDe(usuario?.nombres)}
-              </span>
-              <div className="leading-tight">
-                <p className="text-sm text-ink font-medium">{usuario?.nombres}</p>
-                <p className="text-xs text-ink/50">{ETIQUETA_ROL[usuario?.rol] || usuario?.rol}</p>
-              </div>
-            </div>
-          </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-[1600px] px-5 sm:px-8 py-4 sm:py-5">{children}</div>
-        </main>
+        {/* Fondo oscuro al abrir el menú en móvil */}
+        {menuAbierto && (
+          <div
+            className="fixed inset-0 z-40 bg-ink/40 md:hidden"
+            onClick={() => setMenuAbierto(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Barra lateral: fija/deslizante en móvil, pegada al viewport (sticky) desde tablet;
+          angosta (solo íconos) en tablet siempre, y en escritorio si el usuario la colapsó. */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 w-56 shrink-0 bg-azul-dark flex flex-col justify-between overflow-y-auto overflow-x-hidden transition-[transform,width] duration-200 md:sticky md:top-0 md:h-screen md:z-auto md:translate-x-0 ${colapsadoVisual ? 'md:w-[74px]' : 'md:w-56'
+            } ${menuAbierto ? 'translate-x-0' : '-translate-x-full'}`}
+        >
+          <div>
+            <div className={`px-6 pt-6 pb-5 border-b border-white/10 ${colapsadoVisual ? 'md:px-3' : ''}`}>
+              <div className={`flex items-center justify-between ${colapsadoVisual ? 'md:justify-center' : ''}`}>
+                <div className={`flex items-center gap-2.5 min-w-0 ${colapsadoVisual ? 'md:justify-center' : ''}`}>
+                  <LogoFISEI />
+                  {!colapsadoVisual && (
+                    <div className="min-w-0 leading-tight">
+                      <p className="font-display text-lg font-semibold text-white truncate">FISEI</p>
+                      <p className="text-xs text-paper/60 truncate">Sistema de Reservas</p>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMenuAbierto(false)}
+                  aria-label="Cerrar menú"
+                  className="md:hidden text-white/70 hover:text-white"
+                >
+                  <IconoMenu abierto />
+                </button>
+              </div>
+            </div>
+
+            <nav className={`p-4 space-y-1 ${colapsadoVisual ? 'md:px-3' : ''}`}>
+              {itemsVisibles.map((item) =>
+                item.submenu ? (
+                  <ItemGrupoNav
+                    key={item.to}
+                    item={item}
+                    icono={<IconoNav ruta={item.to} />}
+                    colapsado={colapsadoVisual}
+                    activo={item.submenu.some((s) => s.to === location.pathname)}
+                    abierto={grupoAbierto(item)}
+                    onAlternar={() => alternarGrupo(item)}
+                    onNavegar={() => setMenuAbierto(false)}
+                  />
+                ) : (
+                  <ItemNav
+                    key={item.to}
+                    to={item.to}
+                    icono={<IconoNav ruta={item.to} />}
+                    colapsado={colapsadoVisual}
+                    onNavegar={() => setMenuAbierto(false)}
+                  >
+                    {typeof item.etiqueta === 'function' ? item.etiqueta(usuario?.rol) : item.etiqueta}
+                  </ItemNav>
+                )
+              )}
+            </nav>
+          </div>
+
+          <div className={`p-4 border-t border-white/10 ${colapsadoVisual ? 'md:px-3' : ''}`}>
+            <button
+              onClick={salir}
+              title={colapsadoVisual ? 'Cerrar sesión' : undefined}
+              className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm text-paper/70 hover:bg-white/5 hover:text-white transition-colors ${colapsadoVisual ? 'md:justify-center md:px-0' : ''
+                }`}
+            >
+              <IconoSalir />
+              <span className={colapsadoVisual ? 'md:hidden' : ''}>Cerrar sesión</span>
+            </button>
+          </div>
+        </aside>
+
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Barra superior (desde tablet): sección actual + notificaciones + perfil */}
+          <header className="hidden md:flex items-center justify-between gap-4 bg-white border-b border-line px-8 py-3.5 sticky top-0 z-20">
+            <div className="flex items-center gap-4 min-w-0">
+              <button
+                type="button"
+                onClick={alternarColapso}
+                title={colapsado ? 'Expandir menú' : 'Colapsar menú'}
+                className="shrink-0 text-ink/40 hover:text-ink/70 transition-colors"
+              >
+                <IconoPanelLateral />
+              </button>
+              <div className="w-px h-6 bg-line shrink-0" />
+              <p className="text-sm font-medium text-ink truncate">{etiquetaSeccion}</p>
+            </div>
+
+            <div className="flex items-center gap-4 shrink-0">
+              <NotificacionesMenu />
+
+              <div className="w-px h-6 bg-line" />
+
+              <div className="flex items-center gap-2.5">
+                <span className="flex items-center justify-center w-8 h-8 rounded-full bg-celeste/15 text-celeste-dark text-xs font-semibold shrink-0">
+                  {inicialesDe(usuario?.nombres)}
+                </span>
+                <div className="leading-tight">
+                  <p className="text-sm text-ink font-medium">{usuario?.nombres}</p>
+                  <p className="text-xs text-ink/50">{ETIQUETA_ROL[usuario?.rol] || usuario?.rol}</p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto">
+            <div className="max-w-[1600px] px-5 sm:px-8 py-4 sm:py-5">{children || <Outlet />}</div>
+          </main>
+        </div>
       </div>
-    </div>
+    </LayoutContext.Provider>
   );
 }

@@ -23,6 +23,8 @@ import MisHorarios from './pages/MisHorarios';
 import MisTutorias from './pages/MisTutorias';
 import Reportes from './pages/Reportes';
 
+import Layout from './components/layout/Layout';
+
 // path -> componente. Los roles con acceso se toman de ACCESO_RUTA (lib/permisos).
 const RUTAS_PRIVADAS = [
   { path: '/dashboard', element: <Dashboard /> },
@@ -53,13 +55,22 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
 
-          {RUTAS_PRIVADAS.map(({ path, element }) => (
-            <Route
-              key={path}
-              path={path}
-              element={<ProtectedRoute rolesPermitidos={ACCESO_RUTA[path]}>{element}</ProtectedRoute>}
-            />
-          ))}
+          {/* Layout estructural compartido: no se desmonta al cambiar de ruta */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {RUTAS_PRIVADAS.map(({ path, element }) => (
+              <Route
+                key={path}
+                path={path}
+                element={<ProtectedRoute rolesPermitidos={ACCESO_RUTA[path]}>{element}</ProtectedRoute>}
+              />
+            ))}
+          </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
