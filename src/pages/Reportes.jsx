@@ -9,7 +9,7 @@ import { paralelosApi } from '../api/endpoints/paralelos';
 import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO, OPCIONES_BLOQUE, OPCIONES_TIPO_ESPACIO } from '../lib/constantes';
 import { claveDia, fechaISO, formatearFecha, formatearRango, horaEnMinutos } from '../lib/formato';
 import { Badge, Button, Buscador, Card, DataState, Input, PageHeader, Select, Table, normalizarBusqueda } from '../components/ui';
-import { BarrasHorizontales, Cifra, Columnas, Panel } from '../components/reportes/Graficos';
+import { BarrasHorizontales, Cifra, Columnas, Dona, Panel } from '../components/reportes/Graficos';
 
 // ---------------- Jornada de la facultad ----------------
 const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES'];
@@ -272,16 +272,19 @@ function TabOcupacion({ horarios, espacios }) {
           etiqueta="Uso de las aulas"
           valor={pct(total ? horasUsadas / (total * HORAS_SEMANA) : 0)}
           detalle="de las horas de la semana tienen clase"
+          tono={total && horasUsadas / (total * HORAS_SEMANA) > 0.75 ? 'alerta' : 'bueno'}
         />
         <Cifra
           etiqueta="Hora más llena"
           valor={masLlena?.n ? masLlena.texto : '—'}
           detalle={masLlena?.n ? `solo ${total - masLlena.n} de ${total} libres` : undefined}
+          tono={masLlena?.n === total ? 'critico' : undefined}
         />
         <Cifra
           etiqueta="Mejor hora para reservar"
           valor={masLibre ? masLibre.texto : '—'}
           detalle={masLibre ? `${total - masLibre.n} de ${total} libres` : undefined}
+          tono="bueno"
         />
         <Cifra
           etiqueta="Espacio más usado"
@@ -393,6 +396,8 @@ function TabOcupacion({ horarios, espacios }) {
               setHora(null);
             }}
             vacio="No hay espacios con esos filtros."
+            color="#1baf7a"
+            colorActivo="#0d7a52"
           />
         </Panel>
       </div>
@@ -461,8 +466,13 @@ function TabAcademico({ horarios, paralelos }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Cifra etiqueta="Paralelos" valor={lista.length} detalle={`${totalHoras} h de clase por semana`} />
         <Cifra etiqueta="Docentes con carga" valor={docentes} detalle={docentes ? `${(totalHoras / docentes).toFixed(1)} h/semana en promedio` : undefined} />
-        <Cifra etiqueta="Matrículas" valor={matriculas} detalle="Inscripciones en paralelos" />
-        <Cifra etiqueta="Paralelos sin estudiantes" valor={sinEstudiantes} detalle={lista.length ? `${pct(sinEstudiantes / lista.length)} del total` : undefined} />
+        <Cifra etiqueta="Matrículas" valor={matriculas} detalle="Inscripciones en paralelos" tono={matriculas > 0 ? 'bueno' : undefined} />
+        <Cifra
+          etiqueta="Paralelos sin estudiantes"
+          valor={sinEstudiantes}
+          detalle={lista.length ? `${pct(sinEstudiantes / lista.length)} del total` : undefined}
+          tono={sinEstudiantes === 0 ? 'bueno' : sinEstudiantes / (lista.length || 1) > 0.5 ? 'critico' : 'alerta'}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -480,17 +490,11 @@ function TabAcademico({ horarios, paralelos }) {
           />
         </Panel>
         <Panel titulo="Matrículas por carrera" descripcion="Estudiantes inscritos en los paralelos de cada carrera.">
-          <BarrasHorizontales
-            filas={matriculasPorCarrera.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.valor, detalle: `${x.paralelos} paralelo(s)` }))}
-            vacio="Sin datos."
-          />
+          <Dona segmentos={matriculasPorCarrera.map((x) => ({ clave: x.clave, valor: x.valor }))} etiquetaTotal="Matrículas" />
           {matriculas === 0 && <p className="text-sm text-ink/50 mt-2">Aún no hay estudiantes matriculados.</p>}
         </Panel>
         <Panel titulo="Matrículas por nivel" descripcion="Útil para ver en qué semestres se concentran los estudiantes.">
-          <BarrasHorizontales
-            filas={porNivel.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.valor, detalle: `${x.paralelos} paralelo(s)` }))}
-            vacio="Sin datos."
-          />
+          <Dona segmentos={porNivel.map((x) => ({ clave: x.clave, valor: x.valor }))} etiquetaTotal="Matrículas" />
         </Panel>
       </div>
     </div>
@@ -581,18 +585,19 @@ function TabReservas({ reservas: todas, solicitudes: todasSolicitudes, esDocente
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Cifra etiqueta={esDocente ? 'Mis reservas' : 'Reservas'} valor={activas.length} detalle="No canceladas" />
+        <Cifra etiqueta={esDocente ? 'Mis reservas' : 'Reservas'} valor={activas.length} detalle="No canceladas" tono="bueno" />
         <Cifra
           etiqueta="Canceladas"
           valor={canceladas.length}
           detalle={reservas.length ? `${pct(canceladas.length / reservas.length)} del total` : undefined}
+          tono={canceladas.length === 0 ? undefined : reservas.length && canceladas.length / reservas.length > 0.3 ? 'critico' : 'alerta'}
         />
         <Cifra
           etiqueta="Asistencia promedio"
           valor={activas.length ? (asistencias / activas.length).toFixed(1) : '—'}
           detalle={`${asistencias} asistencia(s) registradas`}
         />
-        <Cifra etiqueta="Solicitudes pendientes" valor={pendientes} detalle="En el rango elegido" />
+        <Cifra etiqueta="Solicitudes pendientes" valor={pendientes} detalle="En el rango elegido" tono={pendientes > 0 ? 'alerta' : 'bueno'} />
       </div>
 
       {reservas.length === 0 ? (
@@ -610,15 +615,31 @@ function TabReservas({ reservas: todas, solicitudes: todasSolicitudes, esDocente
           </Panel>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Panel titulo="Espacios más reservados">
-              <BarrasHorizontales filas={porEspacio.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.total }))} limite={8} />
+              <BarrasHorizontales
+                filas={porEspacio.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.total }))}
+                limite={8}
+                color="#1baf7a"
+                colorActivo="#0d7a52"
+              />
             </Panel>
             {esDocente ? (
               <Panel titulo="Reservas por materia">
-                <BarrasHorizontales filas={porMateria.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.total }))} limite={8} vacio="Ninguna reserva está ligada a una materia." />
+                <BarrasHorizontales
+                  filas={porMateria.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.total }))}
+                  limite={8}
+                  vacio="Ninguna reserva está ligada a una materia."
+                  color="#eda100"
+                  colorActivo="#a87200"
+                />
               </Panel>
             ) : (
               <Panel titulo="Docentes que más reservan">
-                <BarrasHorizontales filas={porDocente.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.total }))} limite={8} />
+                <BarrasHorizontales
+                  filas={porDocente.map((x) => ({ id: x.clave, etiqueta: x.clave, valor: x.total }))}
+                  limite={8}
+                  color="#4a3aa7"
+                  colorActivo="#33297a"
+                />
               </Panel>
             )}
           </div>
