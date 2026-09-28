@@ -12,4 +12,11 @@ export const matriculasApi = {
 
   // DELETE /api/matriculas/:id -> { mensaje }
   eliminar: (id) => api.delete(`/matriculas/${id}`).then((res) => res.data),
+
+  // Automatrícula (ESTUDIANTE). Reglas: máx. 5 materias, sin repetir materia, sin choque de horario.
+  // POST /api/matriculas/mias { id_par } -> { mensaje, matricula }
+  inscribirme: (id_par) => api.post('/matriculas/mias', { id_par }).then((res) => res.data),
+
+  // DELETE /api/matriculas/mias/:id -> { mensaje }
+  retirarme: (id) => api.delete(`/matriculas/mias/${id}`).then((res) => res.data),
 };

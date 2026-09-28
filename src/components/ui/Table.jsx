@@ -1,8 +1,13 @@
+import { usePaginacion } from '../../hooks/usePaginacion';
+import Paginacion from './Paginacion';
+
 /**
  * Tabla ligera con encabezados y estados integrados (cargando / error / vacío).
  * - columnas: [{ clave, titulo, className? }]
  * - datos: array de filas
  * - renderFila: (fila) => <tr> ... </tr>
+ * - porPagina: filas por página (15 por defecto; 0 = sin paginar). La paginación
+ *   solo aparece si hay más filas que eso, y vuelve a la página 1 al filtrar.
  */
 export default function Table({
   columnas,
@@ -12,52 +17,57 @@ export default function Table({
   error = null,
   mensajeVacio = 'Sin registros.',
   filasCargando = 3,
+  porPagina = 15,
 }) {
   const totalColumnas = columnas.length;
+  const paginacion = usePaginacion(datos, porPagina > 0 ? porPagina : Math.max(datos.length, 1));
 
   return (
-    <div className="border border-line bg-white rounded-lg overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs uppercase tracking-wide text-ink/50 border-b border-line">
-            {columnas.map((col) => (
-              <th key={col.clave} className={['px-5 py-3 font-medium', col.className].filter(Boolean).join(' ')}>
-                {col.titulo}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {cargando &&
-            Array.from({ length: filasCargando }).map((_, i) => (
-              <tr key={`sk-${i}`} className="border-b border-line last:border-0">
-                {columnas.map((col) => (
-                  <td key={col.clave} className="px-5 py-3">
-                    <div className="h-4 w-24 max-w-full animate-pulse rounded bg-line/70" />
-                  </td>
-                ))}
+    <div>
+      <div className="border border-line bg-white rounded-lg overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase tracking-wide text-ink/50 border-b border-line">
+              {columnas.map((col) => (
+                <th key={col.clave} className={['px-5 py-3 font-medium', col.className].filter(Boolean).join(' ')}>
+                  {col.titulo}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cargando &&
+              Array.from({ length: filasCargando }).map((_, i) => (
+                <tr key={`sk-${i}`} className="border-b border-line last:border-0">
+                  {columnas.map((col) => (
+                    <td key={col.clave} className="px-5 py-3">
+                      <div className="h-4 w-24 max-w-full animate-pulse rounded bg-line/70" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+            {!cargando && error && (
+              <tr>
+                <td colSpan={totalColumnas} className="px-5 py-6 text-ink/50">
+                  {error}
+                </td>
               </tr>
-            ))}
+            )}
 
-          {!cargando && error && (
-            <tr>
-              <td colSpan={totalColumnas} className="px-5 py-6 text-ink/50">
-                {error}
-              </td>
-            </tr>
-          )}
+            {!cargando && !error && datos.length === 0 && (
+              <tr>
+                <td colSpan={totalColumnas} className="px-5 py-6 text-ink/50">
+                  {mensajeVacio}
+                </td>
+              </tr>
+            )}
 
-          {!cargando && !error && datos.length === 0 && (
-            <tr>
-              <td colSpan={totalColumnas} className="px-5 py-6 text-ink/50">
-                {mensajeVacio}
-              </td>
-            </tr>
-          )}
-
-          {!cargando && !error && datos.map((fila) => renderFila(fila))}
-        </tbody>
-      </table>
+            {!cargando && !error && paginacion.visibles.map((fila) => renderFila(fila))}
+          </tbody>
+        </table>
+      </div>
+      {!cargando && !error && <Paginacion {...paginacion} className="mt-3" />}
     </div>
   );
 }

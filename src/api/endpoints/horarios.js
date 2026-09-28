@@ -7,7 +7,8 @@ export const horariosApi = {
     api.get('/horarios', { params: idEspacio ? { espacio: idEspacio } : {} }).then((res) => res.data),
 
   // POST /api/horarios (LABORATORISTA / ADMIN)
-  // datos = { id_esp, nombre_curso, id_doc?, dia_semana, hora_ini: 'HH:MM', hora_fin: 'HH:MM' }
+  // datos = { id_esp, id_par, dia_semana, hora_ini: 'HH:MM', hora_fin: 'HH:MM' }
+  // (el curso y el docente los toma el backend del paralelo)
   crear: (datos) => api.post('/horarios', datos).then((res) => res.data),
 
   // PUT /api/horarios/:id

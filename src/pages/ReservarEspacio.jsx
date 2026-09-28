@@ -7,7 +7,12 @@ import { useApiResource } from '../hooks/useApiResource';
 import { disponibilidadApi } from '../api/endpoints/disponibilidad';
 import { reservasApi } from '../api/endpoints/reservas';
 import { paralelosApi } from '../api/endpoints/paralelos';
-import { ETIQUETA_BLOQUE, ETIQUETA_TIPO_ESPACIO, OPCIONES_BLOQUE, OPCIONES_TIPO_ESPACIO } from '../lib/constantes';
+import {
+  ETIQUETA_TIPO_ESPACIO,
+  OPCIONES_BLOQUE,
+  OPCIONES_TIPO_ESPACIO,
+  ubicacionEspacio,
+} from '../lib/constantes';
 import { fechaISO, horaEnMinutos, horaEnRango, mensajeDeError } from '../lib/formato';
 import {
   Alert,
@@ -299,7 +304,7 @@ function TarjetaEspacio({ espacio, hueco, onSeleccionar }) {
           </span>
           <p className="font-display text-lg text-ink mt-1">{espacio.nom_esp}</p>
           <p className="text-sm text-ink/50">
-            {ETIQUETA_BLOQUE[espacio.bloque] || espacio.bloque} · Piso {espacio.piso} · Capacidad {espacio.capacidad}
+            {ubicacionEspacio(espacio)} · Capacidad {espacio.capacidad}
           </p>
         </div>
         <Badge className={hueco ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}>

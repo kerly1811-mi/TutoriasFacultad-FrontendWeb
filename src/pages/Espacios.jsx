@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
+import { usePaginacion } from '../hooks/usePaginacion';
 import { useForm } from '../hooks/useForm';
 import { espaciosApi } from '../api/endpoints/espacios';
 import {
-  ETIQUETA_BLOQUE,
   ETIQUETA_ESTADO_ACTIVO,
   ETIQUETA_ESTADO_ESPACIO,
   ETIQUETA_TIPO_ESPACIO,
@@ -15,11 +15,13 @@ import {
   OPCIONES_ESTADO_ESPACIO,
   OPCIONES_TIPO_ESPACIO,
   opcionesPisoPara,
+  ubicacionEspacio,
 } from '../lib/constantes';
 import { mensajeDeError } from '../lib/formato';
 import {
   Alert,
   Badge,
+  Buscador,
   Button,
   Card,
   ConfirmDialog,
@@ -27,9 +29,13 @@ import {
   Input,
   Modal,
   PageHeader,
+  Paginacion,
   Select,
   SkeletonCards,
+  normalizarBusqueda,
 } from '../components/ui';
+
+const FILTROS_INICIALES = { busqueda: '', tipo: '', bloque: '', piso: '' };
 
 export default function Espacios() {
   const { mostrarToast } = useToast();
@@ -42,6 +48,33 @@ export default function Espacios() {
     mensajeError: 'No se pudieron cargar los espacios.',
   });
   const espacios = data ?? [];
+
+  const [filtros, setFiltros] = useState(FILTROS_INICIALES);
+  const hayFiltros = Object.values(filtros).some(Boolean);
+  const cambiarFiltro = (campo) => (e) => {
+    const valor = e.target.value;
+    // Al cambiar de bloque, el piso elegido puede no existir en el nuevo bloque.
+    setFiltros((f) => ({ ...f, [campo]: valor, ...(campo === 'bloque' ? { piso: '' } : {}) }));
+  };
+
+  // Pisos del bloque elegido; sin bloque, los pisos que realmente tienen espacios.
+  const opcionesPiso = useMemo(() => {
+    if (filtros.bloque) return opcionesPisoPara(filtros.bloque);
+    const pisos = [...new Set(espacios.map((e) => e.piso).filter(Boolean))];
+    return pisos.sort((a, b) => a.localeCompare(b, 'es', { numeric: true })).map((p) => ({ value: p, label: p }));
+  }, [filtros.bloque, espacios]);
+
+  const espaciosFiltrados = useMemo(() => {
+    const q = normalizarBusqueda(filtros.busqueda);
+    return espacios.filter(
+      (e) =>
+        (!q || normalizarBusqueda(e.nom_esp).includes(q)) &&
+        (!filtros.tipo || e.tipo === filtros.tipo) &&
+        (!filtros.bloque || e.bloque === filtros.bloque) &&
+        (!filtros.piso || e.piso === filtros.piso)
+    );
+  }, [espacios, filtros]);
+  const paginacion = usePaginacion(espaciosFiltrados, 12);
 
   async function confirmarDeshabilitar() {
     if (!aDeshabilitar) return;
@@ -84,15 +117,65 @@ export default function Espacios() {
         <Button onClick={() => setModal({})}>Nuevo espacio</Button>
       </PageHeader>
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] gap-3">
+        <Buscador
+          className="col-span-2 lg:col-span-1"
+          value={filtros.busqueda}
+          onChange={(busqueda) => setFiltros((f) => ({ ...f, busqueda }))}
+          placeholder="Buscar aula o laboratorio…"
+        />
+        <Select value={filtros.tipo} onChange={cambiarFiltro('tipo')}>
+          <option value="">Aulas y laboratorios</option>
+          {OPCIONES_TIPO_ESPACIO.map((op) => (
+            <option key={op.value} value={op.value}>
+              {op.label}
+            </option>
+          ))}
+        </Select>
+        <Select value={filtros.bloque} onChange={cambiarFiltro('bloque')}>
+          <option value="">Todos los bloques</option>
+          {OPCIONES_BLOQUE.map((op) => (
+            <option key={op.value} value={op.value}>
+              {op.label}
+            </option>
+          ))}
+        </Select>
+        <Select value={filtros.piso} onChange={cambiarFiltro('piso')} className="col-span-2 lg:col-span-1">
+          <option value="">Todos los pisos</option>
+          {opcionesPiso.map((op) => (
+            <option key={op.value} value={op.value}>
+              Piso {op.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {!cargando && espacios.length > 0 && (
+        <div className="mt-3 flex items-center gap-3 text-sm text-ink/50">
+          <span>
+            {hayFiltros
+              ? `Mostrando ${espaciosFiltrados.length} de ${espacios.length} espacio(s).`
+              : `${espacios.length} espacio(s) registrados.`}
+          </span>
+          {hayFiltros && (
+            <button onClick={() => setFiltros(FILTROS_INICIALES)} className="text-azul font-medium hover:underline">
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <DataState
           cargando={cargando}
           error={error}
-          vacio={espacios.length === 0}
+          vacio={espaciosFiltrados.length === 0}
           skeleton={<SkeletonCards count={6} />}
-          mensajeVacio="Aún no hay espacios registrados."
+          mensajeVacio={
+            espacios.length === 0 ? 'Aún no hay espacios registrados.' : 'Ningún espacio coincide con los filtros.'
+          }
         >
-          {espacios.map((esp) => (
+          {paginacion.visibles.map((esp) => (
             <Card key={esp.id_esp} className={esp.activo ? '' : 'opacity-60'}>
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] uppercase tracking-wide text-celeste-dark font-medium">
@@ -109,7 +192,7 @@ export default function Espacios() {
               </div>
               <p className="font-display text-lg text-ink mt-1">{esp.nom_esp}</p>
               <p className="text-sm text-ink/60 mt-1">
-                {ETIQUETA_BLOQUE[esp.bloque] || esp.bloque} · Piso {esp.piso}
+                {ubicacionEspacio(esp)}
               </p>
               <p className="text-sm text-ink/60 mt-3 pt-3 border-t border-line">
                 Capacidad: <span className="font-medium text-ink">{esp.capacidad}</span> personas
@@ -135,6 +218,7 @@ export default function Espacios() {
           ))}
         </DataState>
       </div>
+      {!cargando && !error && <Paginacion {...paginacion} className="mt-4" />}
 
       <Modal
         abierto={Boolean(modal)}

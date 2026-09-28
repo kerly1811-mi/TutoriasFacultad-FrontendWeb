@@ -1,20 +1,51 @@
 import { useCallback, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useApiResource } from '../hooks/useApiResource';
+import { usePaginacion } from '../hooks/usePaginacion';
 import { useForm } from '../hooks/useForm';
 import { horariosApi } from '../api/endpoints/horarios';
 import { espaciosApi } from '../api/endpoints/espacios';
-import { usuariosApi } from '../api/endpoints/usuarios';
+import { paralelosApi } from '../api/endpoints/paralelos';
 import { reservasApi } from '../api/endpoints/reservas';
 import { DIAS_SEMANA, ETIQUETA_DIA, OPCIONES_DIA } from '../lib/constantes';
-import { esHoy, fechaISO, horaEnRango, mensajeDeError, semanaActual } from '../lib/formato';
-import { Alert, Badge, Button, DataState, Input, Modal, PageHeader, Select, SelectorHora } from '../components/ui';
+import { esHoy, fechaISO, horaEnMinutos, horaEnRango, mensajeDeError, semanaActual } from '../lib/formato';
+import {
+  Alert,
+  Badge,
+  Buscador,
+  Button,
+  DataState,
+  Input,
+  Modal,
+  PageHeader,
+  Paginacion,
+  Select,
+  SelectBuscable,
+  SelectorHora,
+  normalizarBusqueda,
+} from '../components/ui';
 
 const HORA_MIN = 7;
 const HORA_MAX = 20;
+// Almuerzo: no se programan clases ni reservas de 13:00 a 14:00.
+const ALMUERZO_INI = 13 * 60;
+const ALMUERZO_FIN = 14 * 60;
+const cruzaAlmuerzo = (ini, fin) => horaEnMinutos(ini) < ALMUERZO_FIN && horaEnMinutos(fin) > ALMUERZO_INI;
+const esFinDeSemana = (iso) => [0, 6].includes(new Date(`${iso}T12:00:00`).getDay());
 
-const DIAS_MOSTRADOS = DIAS_SEMANA.slice(0, 5); // Lunes a Viernes
+const DIAS_MOSTRADOS = DIAS_SEMANA; // Lunes a Viernes
 const ABREV_DIA = { LUNES: 'Lun', MARTES: 'Mar', MIERCOLES: 'Mié', JUEVES: 'Jue', VIERNES: 'Vie' };
+
+// "7", "07", "7:00", "7:30" -> minutos del día; cualquier otro texto -> null (búsqueda por texto).
+// 1-6 se leen como de la tarde (la facultad funciona de 7:00 a 20:00): "3" -> 15:00.
+function busquedaComoHora(q) {
+  const m = q.match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  let h = Number(m[1]);
+  if (h >= 1 && h < HORA_MIN) h += 12;
+  const min = Number(m[2] || 0);
+  return h <= 23 && min <= 59 ? h * 60 + min : null;
+}
 
 /**
  * Horario semanal (laboratorista): misma vista por día/aula que ve el estudiante,
@@ -29,14 +60,16 @@ export default function Horarios() {
   });
   const [modalClase, setModalClase] = useState(null); // null | { horario? }
   const [modalReserva, setModalReserva] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroEspacio, setFiltroEspacio] = useState('');
 
   const cargar = useCallback(async () => {
-    const [horarios, espacios, docentes] = await Promise.all([
+    const [horarios, espacios, paralelos] = await Promise.all([
       horariosApi.listar(),
       espaciosApi.listar(),
-      usuariosApi.listar({ rol: 'DOCENTE' }),
+      paralelosApi.listar(),
     ]);
-    return { horarios, espacios, docentes };
+    return { horarios, espacios, paralelos };
   }, []);
 
   const { data, cargando, error, recargar } = useApiResource(cargar, {
@@ -45,15 +78,30 @@ export default function Horarios() {
 
   const horarios = data?.horarios ?? [];
   const espacios = data?.espacios ?? [];
-  const docentes = data?.docentes ?? [];
+  const paralelos = data?.paralelos ?? [];
 
   const diaFecha = semana[diaIndice];
   const diaTxt = DIAS_MOSTRADOS[diaIndice];
   const fechaTxt = fechaISO(diaFecha);
 
   const grupos = useMemo(() => {
+    const q = normalizarBusqueda(busqueda);
+    const minutoBuscado = busquedaComoHora(q);
+    const coincide = (h) => {
+      if (filtroEspacio && String(h.id_esp) !== filtroEspacio) return false;
+      if (!q) return true;
+      // Por hora: el bloque que está en curso a esa hora (7 -> 07:00-08:00).
+      if (minutoBuscado !== null) {
+        return horaEnMinutos(h.hora_ini) <= minutoBuscado && minutoBuscado < horaEnMinutos(h.hora_fin);
+      }
+      const texto = normalizarBusqueda(
+        `${h.nombre_curso} ${h.docente?.nombres} ${h.docente?.apellidos} ${h.espacio?.nom_esp}`
+      );
+      return q.split(/\s+/).every((palabra) => texto.includes(palabra));
+    };
+
     const eventosClase = horarios
-      .filter((h) => h.dia_semana === diaTxt)
+      .filter((h) => h.dia_semana === diaTxt && coincide(h))
       .map((h) => ({
         tipo: 'CLASE',
         espacio: h.espacio?.nom_esp || `Aula #${h.id_esp}`,
@@ -72,8 +120,11 @@ export default function Horarios() {
 
     return [...mapa.entries()]
       .map(([espacio, items]) => ({ espacio, items: items.sort((a, b) => a.hora_ini.localeCompare(b.hora_ini)) }))
-      .sort((a, b) => a.espacio.localeCompare(b.espacio));
-  }, [horarios, diaTxt]);
+      .sort((a, b) => a.espacio.localeCompare(b.espacio, 'es', { numeric: true }));
+  }, [horarios, diaTxt, busqueda, filtroEspacio]);
+
+  const hayFiltros = Boolean(busqueda || filtroEspacio);
+  const paginacion = usePaginacion(grupos, 10);
 
   async function eliminarClase(id) {
     if (!window.confirm('¿Eliminar este bloque de clase?')) return;
@@ -114,14 +165,54 @@ export default function Horarios() {
         ))}
       </div>
 
+      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+        <Buscador
+          className="flex-1"
+          value={busqueda}
+          onChange={setBusqueda}
+          placeholder="Buscar por hora (ej. 10 o 10:00), curso, docente o aula…"
+        />
+        <div className="sm:w-64">
+          <Select value={filtroEspacio} onChange={(e) => setFiltroEspacio(e.target.value)}>
+            <option value="">Todas las aulas</option>
+            {[...espacios]
+              .sort((a, b) => a.nom_esp.localeCompare(b.nom_esp, 'es', { numeric: true }))
+              .map((e) => (
+                <option key={e.id_esp} value={e.id_esp}>
+                  {e.nom_esp}
+                </option>
+              ))}
+          </Select>
+        </div>
+      </div>
+
+      {hayFiltros && !cargando && (
+        <div className="mt-2 flex items-center gap-3 text-sm text-ink/50">
+          <span>{grupos.reduce((n, g) => n + g.items.length, 0)} bloque(s) encontrados</span>
+          <button
+            onClick={() => {
+              setBusqueda('');
+              setFiltroEspacio('');
+            }}
+            className="text-azul font-medium hover:underline"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      )}
+
       <div className="mt-4 space-y-2">
         <DataState
           cargando={cargando}
           error={error}
           vacio={grupos.length === 0}
-          mensajeVacio={`No hay clases el ${ETIQUETA_DIA[diaTxt]}.`}
+          mensajeVacio={
+            hayFiltros
+              ? `Ninguna clase del ${ETIQUETA_DIA[diaTxt]} coincide con la búsqueda.`
+              : `No hay clases el ${ETIQUETA_DIA[diaTxt]}.`
+          }
         >
-          {grupos.map((g) => (
+          {paginacion.visibles.map((g) => (
             <details key={g.espacio} className="rounded-md border border-line bg-white overflow-hidden group" open>
               <summary className="flex items-center justify-between px-3 py-2 cursor-pointer select-none list-none">
                 <span className="font-display text-sm text-ink">{g.espacio}</span>
@@ -174,6 +265,7 @@ export default function Horarios() {
           ))}
         </DataState>
       </div>
+      {!cargando && !error && <Paginacion {...paginacion} className="mt-4" />}
 
       <Modal
         abierto={Boolean(modalClase)}
@@ -184,7 +276,7 @@ export default function Horarios() {
           <FormularioClase
             horario={modalClase.horario}
             espacios={espacios}
-            docentes={docentes}
+            paralelos={paralelos}
             diaPorDefecto={diaTxt}
             onCancelar={() => setModalClase(null)}
             onListo={() => {
@@ -212,11 +304,12 @@ export default function Horarios() {
   );
 }
 
-function FormularioClase({ horario, espacios, docentes, diaPorDefecto, onCancelar, onListo }) {
+// El bloque se asigna a un paralelo (materia + nivel + docente): el nombre del curso
+// y el docente los completa el backend a partir de él.
+function FormularioClase({ horario, espacios, paralelos, diaPorDefecto, onCancelar, onListo }) {
   const { valores, handleChange, setCampo } = useForm({
     id_esp: horario?.id_esp ? String(horario.id_esp) : '',
-    nombre_curso: horario?.nombre_curso || '',
-    id_doc: horario?.id_doc ? String(horario.id_doc) : '',
+    id_par: horario?.id_par ? String(horario.id_par) : '',
     dia_semana: horario?.dia_semana || diaPorDefecto,
     hora_ini: horario?.hora_ini || '',
     hora_fin: horario?.hora_fin || '',
@@ -224,11 +317,22 @@ function FormularioClase({ horario, espacios, docentes, diaPorDefecto, onCancela
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
 
+  const opcionesParalelo = useMemo(
+    () =>
+      paralelos.map((p) => ({
+        value: p.id_par,
+        label: `${p.materia?.nom_mat} · Paralelo ${p.nom_par}`,
+        detalle: `${p.nivel?.nom_niv} · ${p.nivel?.carrera?.nom_car} · ${p.docente?.nombres} ${p.docente?.apellidos}`,
+      })),
+    [paralelos]
+  );
+  const paraleloElegido = paralelos.find((p) => String(p.id_par) === String(valores.id_par));
+
   async function manejarEnvio(e) {
     e.preventDefault();
     setError(null);
-    if (!valores.id_doc) {
-      setError('Selecciona el docente del curso.');
+    if (!valores.id_par) {
+      setError('Selecciona el paralelo (materia y curso) de la clase.');
       return;
     }
     if (!horaEnRango(valores.hora_ini, HORA_MIN, HORA_MAX) || !horaEnRango(valores.hora_fin, HORA_MIN, HORA_MAX)) {
@@ -239,11 +343,14 @@ function FormularioClase({ horario, espacios, docentes, diaPorDefecto, onCancela
       setError('La hora de fin debe ser posterior a la de inicio.');
       return;
     }
+    if (cruzaAlmuerzo(valores.hora_ini, valores.hora_fin)) {
+      setError('De 13:00 a 14:00 es hora de almuerzo: no se programan clases.');
+      return;
+    }
     setEnviando(true);
     const payload = {
       id_esp: Number(valores.id_esp),
-      nombre_curso: valores.nombre_curso,
-      id_doc: Number(valores.id_doc),
+      id_par: Number(valores.id_par),
       dia_semana: valores.dia_semana,
       hora_ini: valores.hora_ini,
       hora_fin: valores.hora_fin,
@@ -273,26 +380,25 @@ function FormularioClase({ horario, espacios, docentes, diaPorDefecto, onCancela
       </div>
 
       <div className="col-span-2">
-        <Input
-          label="Curso"
-          name="nombre_curso"
+        <SelectBuscable
+          label="Paralelo"
           required
-          value={valores.nombre_curso}
-          onChange={handleChange}
-          placeholder="Programación II - Paralelo A"
+          opciones={opcionesParalelo}
+          value={valores.id_par}
+          onChange={(id) => setCampo('id_par', id)}
+          placeholder="Escribe materia, nivel, carrera o docente…"
+          mensajeVacio="Ningún paralelo coincide."
         />
+        {paraleloElegido && (
+          <p className="text-xs text-ink/50 mt-1">
+            Docente: {paraleloElegido.docente?.nombres} {paraleloElegido.docente?.apellidos}
+          </p>
+        )}
       </div>
 
-      <Select label="Día" name="dia_semana" value={valores.dia_semana} onChange={handleChange} options={OPCIONES_DIA} />
-
-      <Select label="Docente" name="id_doc" required value={valores.id_doc} onChange={handleChange}>
-        <option value="">Selecciona un docente</option>
-        {docentes.map((d) => (
-          <option key={d.id_usr} value={d.id_usr}>
-            {d.nombres} {d.apellidos}
-          </option>
-        ))}
-      </Select>
+      <div className="col-span-2">
+        <Select label="Día" name="dia_semana" value={valores.dia_semana} onChange={handleChange} options={OPCIONES_DIA} />
+      </div>
 
       <SelectorHora
         label="Hora inicio"
@@ -355,6 +461,14 @@ function FormularioReserva({ espacios, fechaPorDefecto, onCancelar, onListo }) {
     }
     if (valores.hora_fin <= valores.hora_ini) {
       setError('La hora de fin debe ser posterior a la de inicio.');
+      return;
+    }
+    if (esFinDeSemana(valores.fecha)) {
+      setError('Sábado y domingo no hay actividades: elige un día de lunes a viernes.');
+      return;
+    }
+    if (cruzaAlmuerzo(valores.hora_ini, valores.hora_fin)) {
+      setError('De 13:00 a 14:00 es hora de almuerzo: no se puede reservar.');
       return;
     }
     setEnviando(true);

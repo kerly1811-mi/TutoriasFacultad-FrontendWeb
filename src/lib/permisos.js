@@ -6,12 +6,18 @@ export const NAV = [
   { to: '/dashboard', etiqueta: 'Panel', roles: ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'] },
 
   // Estudiante
+  { to: '/matricula', etiqueta: 'Matrícula', roles: ['ESTUDIANTE'] },
   { to: '/tutorias', etiqueta: 'Cursos', roles: ['ESTUDIANTE'] },
   { to: '/mis-horarios', etiqueta: 'Horarios', roles: ['ESTUDIANTE'] },
   { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
 
-  // Docente
-  { to: '/reservas', etiqueta: 'Reservar un espacio', roles: ['DOCENTE'] },
+  // Docente / Administrador
+  { to: '/mis-clases', etiqueta: 'Mis clases', roles: ['DOCENTE'] },
+  {
+    to: '/reservas',
+    etiqueta: (rol) => (rol === 'ADMINISTRADOR' ? 'Reservas' : 'Reservar un espacio'),
+    roles: ['DOCENTE', 'ADMINISTRADOR'],
+  },
 
   // Laboratorista / Administrador
   { to: '/espacios', etiqueta: 'Espacios', roles: ['LABORATORISTA', 'ADMINISTRADOR'] },
@@ -64,6 +70,8 @@ export const ACCESO_RUTA = {
   '/solicitudes': ['DOCENTE', 'ESTUDIANTE', 'ADMINISTRADOR'],
   '/mis-horarios': ['ESTUDIANTE'],
   '/mis-tutorias': ['ESTUDIANTE'],
+  '/matricula': ['ESTUDIANTE'],
+  '/mis-clases': ['DOCENTE'],
   '/reportes': ['DOCENTE', 'ADMINISTRADOR'],
 };
 

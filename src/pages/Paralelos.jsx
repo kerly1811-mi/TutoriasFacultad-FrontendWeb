@@ -8,7 +8,20 @@ import { materiasApi } from '../api/endpoints/materias';
 import { carrerasApi } from '../api/endpoints/carreras';
 import { usuariosApi } from '../api/endpoints/usuarios';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Badge, Button, ConfirmDialog, Input, Modal, PageHeader, Select, Table } from '../components/ui';
+import {
+  Alert,
+  Badge,
+  Buscador,
+  Button,
+  ConfirmDialog,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  SelectBuscable,
+  Table,
+  normalizarBusqueda,
+} from '../components/ui';
 
 const COLUMNAS = [
   { clave: 'materia', titulo: 'Materia · Paralelo' },
@@ -32,6 +45,8 @@ export default function Paralelos() {
   const [modal, setModal] = useState(null); // null | { paralelo? }
   const [aEliminar, setAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroCarrera, setFiltroCarrera] = useState('');
 
   const cargar = useCallback(async () => {
     const [paralelos, materias, carreras, docentes] = await Promise.all([
@@ -50,6 +65,18 @@ export default function Paralelos() {
   const materias = data?.materias ?? [];
   const carreras = data?.carreras ?? [];
   const docentes = data?.docentes ?? [];
+  const paralelosFiltrados = useMemo(() => {
+    const q = normalizarBusqueda(busqueda);
+    return paralelos.filter((p) => {
+      if (filtroCarrera && String(p.nivel?.carrera?.id_car) !== filtroCarrera) return false;
+      if (!q) return true;
+      const texto = normalizarBusqueda(
+        `${p.materia?.nom_mat} paralelo ${p.nom_par} ${p.nivel?.nom_niv} ${p.nivel?.carrera?.nom_car} ${p.docente?.nombres} ${p.docente?.apellidos}`
+      );
+      return q.split(/\s+/).every((palabra) => texto.includes(palabra));
+    });
+  }, [paralelos, busqueda, filtroCarrera]);
+
   const puedeCrear = materias.length > 0 && carreras.some((c) => c.niveles.length > 0) && docentes.length > 0;
 
   async function confirmarEliminar() {
@@ -87,17 +114,42 @@ export default function Paralelos() {
         </div>
       )}
 
+      <div className="mt-6 flex flex-col sm:flex-row gap-3">
+        <Buscador
+          className="flex-1"
+          value={busqueda}
+          onChange={setBusqueda}
+          placeholder="Buscar por materia, paralelo, nivel o docente…"
+        />
+        <div className="sm:w-64">
+          <Select value={filtroCarrera} onChange={(e) => setFiltroCarrera(e.target.value)}>
+            <option value="">Todas las carreras</option>
+            {carreras.map((c) => (
+              <option key={c.id_car} value={c.id_car}>
+                {c.nom_car}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+
       {!cargando && paralelos.length > 0 && (
-        <p className="mt-4 text-sm text-ink/50">{paralelos.length} paralelo(s) registrados en total.</p>
+        <p className="mt-3 text-sm text-ink/50">
+          {paralelosFiltrados.length === paralelos.length
+            ? `${paralelos.length} paralelo(s) registrados en total.`
+            : `Mostrando ${paralelosFiltrados.length} de ${paralelos.length} paralelo(s).`}
+        </p>
       )}
 
-      <div className="mt-4">
+      <div className="mt-3">
         <Table
           columnas={COLUMNAS}
-          datos={paralelos}
+          datos={paralelosFiltrados}
           cargando={cargando}
           error={error}
-          mensajeVacio="Aún no hay paralelos registrados."
+          mensajeVacio={
+            paralelos.length === 0 ? 'Aún no hay paralelos registrados.' : 'Ningún paralelo coincide con la búsqueda.'
+          }
           renderFila={(p) => (
             <tr key={p.id_par} className="border-b border-line last:border-0">
               <td className="px-5 py-3">
@@ -242,13 +294,15 @@ function FormularioParalelo({ paralelo, materias, carreras, docentes, onCancelar
   return (
     <form onSubmit={manejarEnvio} className="grid grid-cols-2 gap-4">
       <div className="col-span-2">
-        <Select label="Materia" name="id_mat" required value={valores.id_mat} onChange={handleChange}>
-          {materias.map((m) => (
-            <option key={m.id_mat} value={m.id_mat}>
-              {m.nom_mat}
-            </option>
-          ))}
-        </Select>
+        <SelectBuscable
+          label="Materia"
+          required
+          opciones={materias.map((m) => ({ value: m.id_mat, label: m.nom_mat }))}
+          value={valores.id_mat}
+          onChange={(id) => setValores((v) => ({ ...v, id_mat: id }))}
+          placeholder="Escribe el nombre de la materia…"
+          mensajeVacio="Ninguna materia coincide."
+        />
       </div>
 
       <Input
@@ -260,13 +314,15 @@ function FormularioParalelo({ paralelo, materias, carreras, docentes, onCancelar
         placeholder="A"
       />
 
-      <Select label="Docente" name="id_doc" required value={valores.id_doc} onChange={handleChange}>
-        {docentes.map((d) => (
-          <option key={d.id_usr} value={d.id_usr}>
-            {d.nombres} {d.apellidos}
-          </option>
-        ))}
-      </Select>
+      <SelectBuscable
+        label="Docente"
+        required
+        opciones={docentes.map((d) => ({ value: d.id_usr, label: `${d.nombres} ${d.apellidos}` }))}
+        value={valores.id_doc}
+        onChange={(id) => setValores((v) => ({ ...v, id_doc: id }))}
+        placeholder="Escribe nombre o apellido…"
+        mensajeVacio="Ningún docente coincide."
+      />
 
       <Select label="Carrera" name="id_car" required value={valores.id_car} onChange={manejarCambioCarrera}>
         {carreras.map((c) => (

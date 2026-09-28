@@ -99,10 +99,10 @@ export default function PlantillaFuncionalidadAdmin() {
           <Select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
-            opciones={[
-              { valor: 'TODOS', etiqueta: 'Todos los estados' },
-              { valor: 'ACTIVO', etiqueta: 'Activos' },
-              { valor: 'MANTENIMIENTO', etiqueta: 'En mantenimiento' },
+            options={[
+              { value: 'TODOS', label: 'Todos los estados' },
+              { value: 'ACTIVO', label: 'Activos' },
+              { value: 'MANTENIMIENTO', label: 'En mantenimiento' },
             ]}
           />
         </div>

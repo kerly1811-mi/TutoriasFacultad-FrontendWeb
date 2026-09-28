@@ -2,10 +2,22 @@ import { useCallback, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { useToast } from '../context/ToastContext';
 import { useApiResource } from '../hooks/useApiResource';
+import { usePaginacion } from '../hooks/usePaginacion';
 import { useForm } from '../hooks/useForm';
 import { materiasApi } from '../api/endpoints/materias';
 import { mensajeDeError } from '../lib/formato';
-import { Alert, Button, Card, ConfirmDialog, DataState, Input, Modal, PageHeader, SkeletonCards } from '../components/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  ConfirmDialog,
+  DataState,
+  Input,
+  Modal,
+  PageHeader,
+  Paginacion,
+  SkeletonCards,
+} from '../components/ui';
 
 function IconoMateria() {
   return (
@@ -59,6 +71,8 @@ export default function Materias() {
     }
   }
 
+  const paginacion = usePaginacion(filtradas, 18);
+
   return (
     <Layout>
       <PageHeader
@@ -86,7 +100,7 @@ export default function Materias() {
           skeleton={<SkeletonCards count={6} />}
           mensajeVacio={busqueda ? 'Ninguna materia coincide con la búsqueda.' : 'Aún no hay materias registradas.'}
         >
-          {filtradas.map((m) => (
+          {paginacion.visibles.map((m) => (
             <Card key={m.id_mat} padding="p-4">
               <div className="flex items-start gap-3">
                 <span className="flex items-center justify-center w-9 h-9 rounded-md bg-celeste/10 text-celeste-dark shrink-0">
@@ -112,6 +126,7 @@ export default function Materias() {
           ))}
         </DataState>
       </div>
+      {!cargando && !error && <Paginacion {...paginacion} className="mt-4" />}
 
       <Modal abierto={Boolean(modal)} onCerrar={() => setModal(null)} titulo={modal?.materia ? 'Editar materia' : 'Nueva materia'}>
         {modal && (

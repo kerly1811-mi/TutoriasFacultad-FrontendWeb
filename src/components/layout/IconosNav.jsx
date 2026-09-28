@@ -45,6 +45,20 @@ const ICONOS = {
       <path d="M8 13h2M14 13h2M8 17h2M14 17h2" />
     </svg>
   ),
+  '/matricula': (
+    <svg {...props}>
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+      <path d="M14 3v6h6" />
+      <path d="M12 12v6M9 15h6" />
+    </svg>
+  ),
+  '/mis-clases': (
+    <svg {...props}>
+      <rect x="3" y="4" width="18" height="12" rx="1.5" />
+      <path d="M8 20h8M12 16v4" />
+      <path d="M7 8h6M7 11h4" />
+    </svg>
+  ),
   '/mis-horarios': (
     <svg {...props}>
       <rect x="3" y="4" width="18" height="17" rx="2" />
