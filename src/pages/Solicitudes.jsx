@@ -274,7 +274,7 @@ function VistaEstudiante() {
   const solicitudes = data ?? [];
 
   const cargarMatriculas = useCallback(() => matriculasApi.listar(), []);
-  const { data: matriculas } = useApiResource(cargarMatriculas, {
+  const { data: matriculas, cargando: cargandoMatriculas } = useApiResource(cargarMatriculas, {
     mensajeError: 'No se pudieron cargar tus cursos.',
   });
   const misParalelos = (matriculas ?? []).map((m) => m.paralelo).filter(Boolean);
@@ -290,7 +290,7 @@ function VistaEstudiante() {
         </Button>
       </PageHeader>
 
-      {!cargando && misParalelos.length === 0 && (
+      {!cargando && !cargandoMatriculas && misParalelos.length === 0 && (
         <div className="mt-4">
           <Alert>No estás matriculado en ningún curso todavía, así que no puedes enviar solicitudes.</Alert>
         </div>

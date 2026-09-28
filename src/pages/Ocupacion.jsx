@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
+import { useAuth } from '../context/AuthContext';
 import { useApiResource } from '../hooks/useApiResource';
 import { usePaginacion } from '../hooks/usePaginacion';
 import { disponibilidadApi } from '../api/endpoints/disponibilidad';
 import { reservasApi } from '../api/endpoints/reservas';
 import { useToast } from '../context/ToastContext';
-import { ETIQUETA_DIA, ETIQUETA_TIPO_ESPACIO, OPCIONES_TIPO_ESPACIO } from '../lib/constantes';
-import { horaEnMinutos, mensajeDeError } from '../lib/formato';
+import { ETIQUETA_DIA, ETIQUETA_TIPO_ESPACIO, OPCIONES_BLOQUE, OPCIONES_TIPO_ESPACIO } from '../lib/constantes';
+import { fechaISO, horaEnMinutos, mensajeDeError } from '../lib/formato';
 import {
   Alert,
   Badge,
@@ -87,6 +88,20 @@ function esFinDeSemana(iso) {
   return dia === 0 || dia === 6;
 }
 
+// Bloque de la agenda vigente en este instante (si `fecha` es hoy), o el primero
+// del día si no hay uno "actual" (fecha futura, o ya se acabó la jornada). Es lo
+// único que se ve con la tarjeta contraída.
+function bloqueDestacado(agenda, fecha) {
+  if (!agenda.length) return null;
+  if (fecha === fechaISO(new Date())) {
+    const ahora = new Date();
+    const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    const actual = agenda.find((o) => o.ini <= minAhora && minAhora < o.fin);
+    if (actual) return actual;
+  }
+  return agenda[0];
+}
+
 // Hoy; si cae en fin de semana, el lunes siguiente (sábado y domingo no hay clases).
 function fechaInicial() {
   const d = new Date();
@@ -95,9 +110,11 @@ function fechaInicial() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const FILTROS_INICIALES = { busqueda: '', tipo: '', estado: '' };
+const FILTROS_INICIALES = { busqueda: '', tipo: '', bloque: '', estado: '' };
 
 export default function Ocupacion() {
+  const { usuario } = useAuth();
+  const puedeCancelar = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'LABORATORISTA';
   const [fecha, setFecha] = useState(fechaInicial);
   const [filtros, setFiltros] = useState(FILTROS_INICIALES);
   const [aCancelar, setACancelar] = useState(null); // null | id_rev
@@ -132,30 +149,37 @@ export default function Ocupacion() {
   const hayFiltros = Object.values(filtros).some(Boolean);
   const cambiarFiltro = (campo) => (e) => setFiltros((f) => ({ ...f, [campo]: e.target.value }));
 
-  // Cada tarjeta muestra solo las filas que pasan los filtros; las tarjetas sin filas se ocultan.
+  // El filtro de estado decide qué AULAS se muestran (libre/ocupada en el bloque
+  // destacado, es decir, ahora mismo o el primer bloque del día); el buscador filtra
+  // qué FILAS de cada tarjeta se ven. Las tarjetas sin filas visibles se ocultan.
   const tarjetas = useMemo(() => {
     const q = normalizarBusqueda(filtros.busqueda);
     const minuto = busquedaComoHora(q);
 
     return espacios
       .filter((esp) => !filtros.tipo || esp.tipo === filtros.tipo)
+      .filter((esp) => !filtros.bloque || esp.bloque === filtros.bloque)
       .map((esp) => {
         const agenda = agendaDelDia(esp.ocupaciones);
         const horasLibres = agenda.filter((o) => o.tipo === 'LIBRE').reduce((t, o) => t + (o.fin - o.ini), 0) / 60;
         const nombreCoincide = Boolean(q) && minuto === null && normalizarBusqueda(esp.nom_esp).includes(q);
 
         const filas = agenda.filter((o) => {
-          if (filtros.estado === 'LIBRE' && o.tipo !== 'LIBRE') return false;
-          if (filtros.estado === 'OCUPADO' && o.tipo === 'LIBRE') return false;
           if (!q || nombreCoincide) return true;
           if (minuto !== null) return o.ini <= minuto && minuto < o.fin;
           return normalizarBusqueda(o.etiqueta || '').includes(q);
         });
-        return { esp, filas, horasLibres, sinOcupaciones: esp.ocupaciones.length === 0 };
+        const destacado = bloqueDestacado(agenda, fecha);
+        return { esp, filas, horasLibres, destacado };
       })
       .filter((t) => t.filas.length > 0)
+      .filter((t) => {
+        if (filtros.estado === 'LIBRE') return t.destacado?.tipo === 'LIBRE';
+        if (filtros.estado === 'OCUPADO') return t.destacado && t.destacado.tipo !== 'LIBRE';
+        return true;
+      })
       .sort((a, b) => a.esp.nom_esp.localeCompare(b.esp.nom_esp, 'es', { numeric: true }));
-  }, [espacios, filtros]);
+  }, [espacios, filtros, fecha]);
   const paginacion = usePaginacion(tarjetas, 9);
 
   return (
@@ -186,7 +210,7 @@ export default function Ocupacion() {
         </div>
       ) : (
         <>
-          <div className="mt-4 grid grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(2,minmax(0,1fr))] gap-3">
+          <div className="mt-4 grid grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))] gap-3">
             <Buscador
               className="col-span-2 lg:col-span-1"
               value={filtros.busqueda}
@@ -201,10 +225,18 @@ export default function Ocupacion() {
                 </option>
               ))}
             </Select>
+            <Select value={filtros.bloque} onChange={cambiarFiltro('bloque')}>
+              <option value="">Todos los bloques</option>
+              {OPCIONES_BLOQUE.map((op) => (
+                <option key={op.value} value={op.value}>
+                  {op.label}
+                </option>
+              ))}
+            </Select>
             <Select value={filtros.estado} onChange={cambiarFiltro('estado')}>
-              <option value="">Libres y ocupados</option>
-              <option value="LIBRE">Solo libres</option>
-              <option value="OCUPADO">Solo ocupados</option>
+              <option value="">Todos los espacios</option>
+              <option value="LIBRE">Disponibles ahora</option>
+              <option value="OCUPADO">Ocupadas ahora</option>
             </Select>
           </div>
 
@@ -219,7 +251,7 @@ export default function Ocupacion() {
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
             <DataState
               cargando={cargando}
               error={error}
@@ -229,7 +261,7 @@ export default function Ocupacion() {
                 espacios.length === 0 ? 'No hay aulas registradas.' : 'Ningún espacio coincide con los filtros.'
               }
             >
-              {paginacion.visibles.map(({ esp, filas, horasLibres, sinOcupaciones }) => (
+              {paginacion.visibles.map(({ esp, filas, horasLibres, destacado }) => (
                 <Card key={esp.id_esp}>
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -238,52 +270,53 @@ export default function Ocupacion() {
                       </span>
                       <p className="font-display text-lg text-ink mt-1">{esp.nom_esp}</p>
                     </div>
-                    <Badge
-                      className={
-                        sinOcupaciones
-                          ? 'bg-success/10 text-success'
-                          : horasLibres === 0
-                          ? 'bg-danger/10 text-danger'
-                          : 'bg-celeste/10 text-celeste-dark'
-                      }
-                    >
-                      {sinOcupaciones
-                        ? 'Libre todo el día'
-                        : horasLibres === 0
-                        ? 'Sin horas libres'
-                        : `${horasLibres} h libre(s)`}
-                    </Badge>
+                    {filtros.estado ? (
+                      <Badge className={horasLibres === 0 ? 'bg-danger/10 text-danger' : 'bg-celeste/10 text-celeste-dark'}>
+                        {horasLibres === 0 ? 'Sin horas libres' : `${horasLibres} h libre(s)`}
+                      </Badge>
+                    ) : (
+                      <Badge className={destacado?.tipo === 'LIBRE' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}>
+                        {destacado?.tipo === 'LIBRE' ? 'Disponible' : 'Ocupado'}
+                      </Badge>
+                    )}
                   </div>
 
-                  <ul className="mt-3 pt-3 border-t border-line space-y-1.5">
-                    {filas.map((o, i) => (
-                      <li
-                        key={`${esp.id_esp}-${i}`}
-                        className={`flex items-center justify-between gap-2 text-sm ${
-                          o.tipo === 'LIBRE' ? 'rounded bg-success/5 -mx-1.5 px-1.5' : ''
-                        }`}
+                  <details className="mt-3 pt-3 border-t border-line group">
+                    <summary className="flex items-center justify-between gap-2 cursor-pointer select-none list-none">
+                      {destacado ? (
+                        <FilaOcupacion
+                          o={destacado}
+                          puedeCancelar={puedeCancelar}
+                          onCancelar={() => setACancelar(destacado.id_rev)}
+                        />
+                      ) : (
+                        <span className="text-sm text-ink/50">Sin datos para hoy.</span>
+                      )}
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="w-3.5 h-3.5 text-ink/40 shrink-0 transition-transform group-open:rotate-180"
                       >
-                        <span>
-                          <span className="text-ink/70 tabular-nums">
-                            {o.hora_ini}–{o.hora_fin}
-                          </span>{' '}
-                          <span className={ESTILO_TIPO[o.tipo].clase}>{ESTILO_TIPO[o.tipo].etiqueta}</span>
-                          {o.etiqueta && <span className="text-ink/50"> · {o.etiqueta}</span>}
-                        </span>
-                        {o.tipo === 'RESERVA' && (
-                          <button
-                            type="button"
-                            onClick={() => setACancelar(o.id_rev)}
-                            title="Cancelar reserva"
-                            aria-label="Cancelar reserva"
-                            className="shrink-0 text-ink/30 hover:text-danger transition-colors"
-                          >
-                            <IconoCancelar />
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </summary>
+                    <ul className="mt-2 space-y-1.5">
+                      {filas.map((o, i) => (
+                        <li key={`${esp.id_esp}-${i}`}>
+                          <FilaOcupacion
+                            o={o}
+                            puedeCancelar={puedeCancelar}
+                            onCancelar={() => setACancelar(o.id_rev)}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 </Card>
               ))}
             </DataState>
@@ -306,6 +339,39 @@ export default function Ocupacion() {
         onCancelar={() => setACancelar(null)}
       />
     </Layout>
+  );
+}
+
+function FilaOcupacion({ o, puedeCancelar, onCancelar }) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-2 text-sm w-full min-w-0 ${
+        o.tipo === 'LIBRE' ? 'rounded bg-success/5 -mx-1.5 px-1.5 py-0.5' : ''
+      }`}
+    >
+      <span className="min-w-0">
+        <span className="text-ink/70 tabular-nums">
+          {o.hora_ini}–{o.hora_fin}
+        </span>{' '}
+        <span className={ESTILO_TIPO[o.tipo].clase}>{ESTILO_TIPO[o.tipo].etiqueta}</span>
+        {o.etiqueta && <span className="text-ink/50"> · {o.etiqueta}</span>}
+      </span>
+      {o.tipo === 'RESERVA' && puedeCancelar && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onCancelar();
+          }}
+          title="Cancelar reserva"
+          aria-label="Cancelar reserva"
+          className="shrink-0 text-ink/30 hover:text-danger transition-colors"
+        >
+          <IconoCancelar />
+        </button>
+      )}
+    </div>
   );
 }
 

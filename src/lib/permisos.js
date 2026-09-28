@@ -10,6 +10,7 @@ export const NAV = [
   { to: '/tutorias', etiqueta: 'Cursos', roles: ['ESTUDIANTE'] },
   { to: '/mis-horarios', etiqueta: 'Horarios', roles: ['ESTUDIANTE'] },
   { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
+  { to: '/ocupacion', etiqueta: 'Disponibilidad', roles: ['ESTUDIANTE'] },
 
   // Docente / Administrador
   { to: '/mis-clases', etiqueta: 'Mis clases', roles: ['DOCENTE'] },
@@ -59,7 +60,7 @@ export const ACCESO_RUTA = {
   '/reservas': ['DOCENTE', 'ADMINISTRADOR'],
   '/reservas/:id': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
   '/horarios': ['LABORATORISTA', 'ADMINISTRADOR'],
-  '/ocupacion': ['LABORATORISTA', 'ADMINISTRADOR'],
+  '/ocupacion': ['LABORATORISTA', 'ADMINISTRADOR', 'ESTUDIANTE'],
   '/espacios': ['LABORATORISTA', 'ADMINISTRADOR'],
   '/usuarios': ['ADMINISTRADOR'],
   '/carreras': ['ADMINISTRADOR'],
@@ -74,6 +75,18 @@ export const ACCESO_RUTA = {
   '/mis-clases': ['DOCENTE'],
   '/reportes': ['DOCENTE', 'ADMINISTRADOR'],
 };
+
+// Orden del menú lateral solo para ESTUDIANTE (los demás roles usan el orden de
+// aparición en NAV). Las rutas no listadas aquí no deberían aplicar a este rol.
+export const ORDEN_NAV_ESTUDIANTE = [
+  '/dashboard',
+  '/tutorias',
+  '/mis-tutorias',
+  '/mis-horarios',
+  '/ocupacion',
+  '/solicitudes',
+  '/matricula',
+];
 
 // A dónde mandar a cada rol tras iniciar sesión / si entra a una ruta sin permiso.
 export const INICIO_POR_ROL = {

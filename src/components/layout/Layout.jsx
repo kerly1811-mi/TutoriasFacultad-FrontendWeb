@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ETIQUETA_ROL } from '../../lib/constantes';
-import { NAV, puede } from '../../lib/permisos';
+import { NAV, ORDEN_NAV_ESTUDIANTE, puede } from '../../lib/permisos';
 import { IconoNav } from './IconosNav';
 import NotificacionesMenu from './NotificacionesMenu';
 
@@ -285,6 +285,9 @@ function LayoutPrincipal({ children }) {
   }
 
   const itemsVisibles = NAV.filter((item) => puede(item.roles, usuario?.rol));
+  if (usuario?.rol === 'ESTUDIANTE') {
+    itemsVisibles.sort((a, b) => ORDEN_NAV_ESTUDIANTE.indexOf(a.to) - ORDEN_NAV_ESTUDIANTE.indexOf(b.to));
+  }
   const seccionActual = itemsVisibles.find((item) => item.to === location.pathname);
   const subseccionActual = itemsVisibles
     .filter((item) => item.submenu)

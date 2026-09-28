@@ -71,6 +71,22 @@ function minAHora(mins) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// Ocupación vigente en este instante (si `fecha` es hoy), o la primera del día si
+// no hay una "actual" (fecha futura, o ya se acabó la jornada) -- lo único que se
+// ve con la tarjeta contraída.
+function ocupacionDestacada(ocupaciones, fecha) {
+  if (!ocupaciones.length) return null;
+  if (fecha === hoyISO()) {
+    const ahora = new Date();
+    const minAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    const actual = ocupaciones.find(
+      (o) => horaEnMinutos(o.hora_ini) <= minAhora && minAhora < horaEnMinutos(o.hora_fin)
+    );
+    if (actual) return actual;
+  }
+  return ocupaciones[0];
+}
+
 // Hueco libre continuo de un espacio a partir de `horaIni`: hasta la siguiente
 // clase/reserva, o hasta `horaFinBusqueda` si no hay nada más en ese rango.
 function calcularHueco(espacio, horaIni, horaFinBusqueda) {
@@ -268,6 +284,7 @@ export default function ReservarEspacio() {
                   key={esp.id_esp}
                   espacio={esp}
                   hueco={hueco}
+                  fecha={fecha}
                   onSeleccionar={() => setSeleccionado({ espacio: esp, hueco })}
                 />
               );
@@ -294,7 +311,8 @@ export default function ReservarEspacio() {
   );
 }
 
-function TarjetaEspacio({ espacio, hueco, onSeleccionar }) {
+function TarjetaEspacio({ espacio, hueco, fecha, onSeleccionar }) {
+  const destacada = ocupacionDestacada(espacio.ocupaciones, fecha);
   return (
     <Card>
       <div className="flex items-start justify-between gap-2">
@@ -313,13 +331,33 @@ function TarjetaEspacio({ espacio, hueco, onSeleccionar }) {
       </div>
 
       {espacio.ocupaciones.length > 0 && (
-        <ul className="mt-3 pt-3 border-t border-line space-y-1">
-          {espacio.ocupaciones.map((o, i) => (
-            <li key={`${espacio.id_esp}-${i}`} className="text-sm text-ink/60">
-              {o.hora_ini}–{o.hora_fin} · {o.tipo === 'CLASE' ? 'Clase' : 'Reserva'}: {o.etiqueta}
-            </li>
-          ))}
-        </ul>
+        <details className="mt-3 pt-3 border-t border-line group">
+          <summary className="flex items-center justify-between gap-2 cursor-pointer select-none list-none text-sm text-ink/60">
+            <span className="truncate">
+              {destacada.hora_ini}–{destacada.hora_fin} · {destacada.tipo === 'CLASE' ? 'Clase' : 'Reserva'}:{' '}
+              {destacada.etiqueta}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-3.5 h-3.5 text-ink/40 shrink-0 transition-transform group-open:rotate-180"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </summary>
+          <ul className="mt-2 space-y-1">
+            {espacio.ocupaciones.map((o, i) => (
+              <li key={`${espacio.id_esp}-${i}`} className="text-sm text-ink/60">
+                {o.hora_ini}–{o.hora_fin} · {o.tipo === 'CLASE' ? 'Clase' : 'Reserva'}: {o.etiqueta}
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {hueco && (

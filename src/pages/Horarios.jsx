@@ -138,7 +138,10 @@ export default function Horarios() {
 
   return (
     <Layout>
-      <PageHeader titulo="Horarios" descripcion="Tu semana, organizada por aula: el horario fijo de clases.">
+      <PageHeader
+        titulo="Horarios"
+        descripcion="Malla fija de clases: se repite igual todas las semanas del ciclo."
+      >
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setModalReserva(true)}>
             Reservar
@@ -148,19 +151,18 @@ export default function Horarios() {
       </PageHeader>
 
       <div className="mt-6 flex gap-1.5 max-w-md">
-        {semana.map((d, i) => (
+        {DIAS_MOSTRADOS.map((dia, i) => (
           <button
-            key={i}
+            key={dia}
             type="button"
             onClick={() => setDiaIndice(i)}
-            className={`flex-1 rounded-md border px-2 py-1.5 text-center transition-colors ${
+            className={`flex-1 rounded-md border px-2 py-2 text-center text-sm font-medium transition-colors ${
               i === diaIndice
                 ? 'bg-azul border-azul text-white'
                 : 'bg-white border-line text-ink/70 hover:border-azul/40'
             }`}
           >
-            <p className="text-[10px] uppercase tracking-wide opacity-80">{ABREV_DIA[DIAS_MOSTRADOS[i]]}</p>
-            <p className="font-display text-sm leading-tight">{d.getDate()}</p>
+            {ABREV_DIA[dia]}
           </button>
         ))}
       </div>

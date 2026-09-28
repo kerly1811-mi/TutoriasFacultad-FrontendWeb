@@ -177,11 +177,11 @@ export default function Espacios() {
         >
           {paginacion.visibles.map((esp) => (
             <Card key={esp.id_esp} className={esp.activo ? '' : 'opacity-60'}>
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-[11px] uppercase tracking-wide text-celeste-dark font-medium">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-wide text-celeste-dark font-semibold">
                   {ETIQUETA_TIPO_ESPACIO[esp.tipo] || esp.tipo}
                 </span>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0">
                   {!esp.activo && (
                     <Badge className={ESTILO_ESTADO_ACTIVO.false}>{ETIQUETA_ESTADO_ACTIVO.false}</Badge>
                   )}
@@ -190,29 +190,59 @@ export default function Espacios() {
                   </Badge>
                 </div>
               </div>
-              <p className="font-display text-lg text-ink mt-1">{esp.nom_esp}</p>
-              <p className="text-sm text-ink/60 mt-1">
-                {ubicacionEspacio(esp)}
-              </p>
-              <p className="text-sm text-ink/60 mt-3 pt-3 border-t border-line">
-                Capacidad: <span className="font-medium text-ink">{esp.capacidad}</span> personas
-              </p>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                <button onClick={() => setModal({ espacio: esp })} className="text-azul font-medium hover:underline">
-                  Editar
-                </button>
-                <button onClick={() => alternarMantenimiento(esp)} className="text-ink/70 font-medium hover:underline">
-                  {esp.estado === 'MANTENIMIENTO' ? 'Marcar disponible' : 'Poner en mantenimiento'}
-                </button>
-                {esp.activo ? (
-                  <button onClick={() => setADeshabilitar(esp)} className="text-danger font-medium hover:underline">
-                    Deshabilitar
+
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <p className="font-display text-lg text-ink truncate" title={esp.nom_esp}>
+                  {esp.nom_esp}
+                </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setModal({ espacio: esp })}
+                    title="Editar"
+                    aria-label="Editar"
+                    className="p-1.5 rounded-md text-azul/60 hover:text-azul hover:bg-azul/10 transition-colors"
+                  >
+                    <IconoEditar />
                   </button>
-                ) : (
-                  <button onClick={() => habilitar(esp)} className="text-success font-medium hover:underline">
-                    Habilitar
+                  <button
+                    onClick={() => alternarMantenimiento(esp)}
+                    title={esp.estado === 'MANTENIMIENTO' ? 'Marcar disponible' : 'Poner en mantenimiento'}
+                    aria-label={esp.estado === 'MANTENIMIENTO' ? 'Marcar disponible' : 'Poner en mantenimiento'}
+                    className="p-1.5 rounded-md text-ink/50 hover:text-ink/80 hover:bg-ink/5 transition-colors"
+                  >
+                    <IconoMantenimiento />
                   </button>
-                )}
+                  {esp.activo ? (
+                    <button
+                      onClick={() => setADeshabilitar(esp)}
+                      title="Deshabilitar"
+                      aria-label="Deshabilitar"
+                      className="p-1.5 rounded-md text-danger/60 hover:text-danger hover:bg-danger/10 transition-colors"
+                    >
+                      <IconoDeshabilitar />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => habilitar(esp)}
+                      title="Habilitar"
+                      aria-label="Habilitar"
+                      className="p-1.5 rounded-md text-success/60 hover:text-success hover:bg-success/10 transition-colors"
+                    >
+                      <IconoHabilitar />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-2.5 flex items-center gap-4 text-sm text-ink/60">
+                <span className="flex items-center gap-1 truncate">
+                  <IconoUbicacion />
+                  <span className="truncate">{ubicacionEspacio(esp)}</span>
+                </span>
+                <span className="flex items-center gap-1 shrink-0">
+                  <IconoCapacidad />
+                  <span className="font-medium text-ink">{esp.capacidad}</span>
+                </span>
               </div>
             </Card>
           ))}
@@ -352,5 +382,60 @@ function FormularioEspacio({ espacio, onCancelar, onListo }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+function IconoUbicacion() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+      <path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+
+function IconoCapacidad() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+      <path d="M17 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1" />
+      <circle cx="10" cy="7" r="3.5" />
+      <path d="M20 20v-1a4 4 0 0 0-2.6-3.75" />
+      <path d="M14 3.6a3.5 3.5 0 0 1 0 6.8" />
+    </svg>
+  );
+}
+
+function IconoEditar() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function IconoMantenimiento() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M14.7 6.3a4 4 0 0 1-5.4 5.4l-5.6 5.6a1.5 1.5 0 0 0 2.12 2.12l5.6-5.6a4 4 0 0 1 5.4-5.4l-2.3 2.3-1.7-1.7Z" />
+    </svg>
+  );
+}
+
+function IconoDeshabilitar() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9.5 9.5 5 5m0-5-5 5" />
+    </svg>
+  );
+}
+
+function IconoHabilitar() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
   );
 }
