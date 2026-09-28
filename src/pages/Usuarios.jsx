@@ -23,7 +23,7 @@ export default function Usuarios() {
   const { usuario: usuarioActual } = useAuth();
   const { mostrarToast } = useToast();
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [creado, setCreado] = useState(null);
+  const [creado, setCreado] = useState(null); // { ...usuario, password }
   const [aDeshabilitar, setADeshabilitar] = useState(null);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
 
@@ -89,6 +89,23 @@ export default function Usuarios() {
     }
   }
 
+  function copiarCredenciales() {
+    if (!creado) return;
+    const texto = `Credenciales de acceso al Sistema de Tutorías FISEI:\n• Correo: ${creado.correo}\n• Contraseña temporal: ${creado.password}\n• Rol: ${ETIQUETA_ROL[creado.rol] || creado.rol}\n• Enlace de acceso: ${window.location.origin}/login`;
+    navigator.clipboard.writeText(texto);
+    mostrarToast('Credenciales copiadas al portapapeles.', 'exito');
+  }
+
+  function enviarPorGmail() {
+    if (!creado) return;
+    const asunto = encodeURIComponent('Credenciales de acceso - Sistema de Tutorías FISEI');
+    const cuerpo = encodeURIComponent(
+      `Hola ${creado.nombres || ''} ${creado.apellidos || ''},\n\nSe ha creado tu cuenta en el Sistema de Gestión de Tutorías y Espacios de la FISEI.\n\nTus credenciales para ingresar son:\n- Correo: ${creado.correo}\n- Contraseña temporal: ${creado.password}\n- Rol asignado: ${ETIQUETA_ROL[creado.rol] || creado.rol}\n\nPuedes iniciar sesión en:\n${window.location.origin}/login\n\nPor favor, cambia tu contraseña luego de ingresar por primera vez.\n\nSaludos cordiales,\nAdministración FISEI`
+    );
+    const urlGmail = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(creado.correo)}&su=${asunto}&body=${cuerpo}`;
+    window.open(urlGmail, '_blank');
+  }
+
   return (
     <AdminPageTemplate
       titulo="Usuarios"
@@ -143,17 +160,71 @@ export default function Usuarios() {
       descripcionVacio="Probá ajustando el término de búsqueda o los filtros de rol y estado."
       modales={
         <>
+          {/* Modal Crear Usuario */}
           <Modal abierto={modalAbierto} onCerrar={() => setModalAbierto(false)} titulo="Nuevo usuario">
             <FormularioUsuario
               onCancelar={() => setModalAbierto(false)}
-              onListo={(usuario) => {
+              onListo={(usuario, password, correoEnviado) => {
                 setModalAbierto(false);
-                setCreado(usuario);
+                setCreado({ ...usuario, password, correoEnviado });
                 recargar();
               }}
             />
           </Modal>
 
+          {/* Modal de Credenciales creadas (con envío por Gmail y copia rápida) */}
+          <Modal abierto={Boolean(creado)} onCerrar={() => setCreado(null)} titulo="Credenciales del nuevo usuario">
+            <div className="space-y-4">
+              <div className="p-3.5 bg-success/10 border border-success/30 rounded-lg text-sm text-ink">
+                <p className="font-semibold text-success flex items-center gap-1.5">
+                  ✓ ¡Usuario registrado con éxito!
+                </p>
+                <p className="text-xs text-ink/70 mt-1">
+                  {creado?.correoEnviado
+                    ? '✉️ Las credenciales fueron enviadas automáticamente al correo del usuario por el servidor.'
+                    : 'El usuario ya está registrado en el sistema. Puedes enviarle sus credenciales ahora mismo por Gmail para testear o copiarlas al portapapeles.'}
+                </p>
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-line bg-paper/60 p-4 font-mono text-xs">
+                <div className="flex justify-between items-center py-1 border-b border-line/50">
+                  <span className="text-ink/60 font-sans">Usuario / Nombre:</span>
+                  <span className="font-bold text-ink">{creado?.nombres} {creado?.apellidos}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-line/50">
+                  <span className="text-ink/60 font-sans">Correo electrónico:</span>
+                  <span className="font-bold text-ink">{creado?.correo}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-line/50">
+                  <span className="text-ink/60 font-sans">Contraseña temporal:</span>
+                  <span className="font-bold text-azul bg-white px-2.5 py-1 rounded border border-line text-sm select-all">
+                    {creado?.password}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-ink/60 font-sans">Rol asignado:</span>
+                  <span className="text-ink font-semibold">{ETIQUETA_ROL[creado?.rol] || creado?.rol}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <Button variant="secondary" onClick={copiarCredenciales} className="flex-1">
+                  📋 Copiar credenciales
+                </Button>
+                <Button onClick={enviarPorGmail} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                  ✉️ Enviar por Gmail
+                </Button>
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-line">
+                <Button variant="secondary" size="sm" onClick={() => setCreado(null)}>
+                  Listo, cerrar
+                </Button>
+              </div>
+            </div>
+          </Modal>
+
+          {/* Diálogo Deshabilitar */}
           <ConfirmDialog
             abierto={Boolean(aDeshabilitar)}
             titulo="Deshabilitar usuario"
@@ -171,15 +242,6 @@ export default function Usuarios() {
         </>
       }
     >
-      {creado && (
-        <div className="mb-4">
-          <Alert variant="success">
-            Usuario creado: <b>{creado.correo}</b> ({ETIQUETA_ROL[creado.rol]}). Comunícale su contraseña para que
-            inicie sesión.
-          </Alert>
-        </div>
-      )}
-
       <Table
         columnas={COLUMNAS}
         datos={usuariosFiltrados}
@@ -216,7 +278,7 @@ export default function Usuarios() {
 }
 
 function FormularioUsuario({ onCancelar, onListo }) {
-  const { valores, handleChange } = useForm({
+  const { valores, handleChange, setCampo } = useForm({
     cedula: '',
     nombres: '',
     apellidos: '',
@@ -228,6 +290,15 @@ function FormularioUsuario({ onCancelar, onListo }) {
   const [error, setError] = useState(null);
   const [errorCedula, setErrorCedula] = useState(null);
 
+  function generarPassword() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$';
+    let p = 'Fisei-';
+    for (let i = 0; i < 6; i++) {
+      p += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCampo('password', p);
+  }
+
   async function manejarEnvio(e) {
     e.preventDefault();
     if (!cedulaValida(valores.cedula)) {
@@ -238,8 +309,8 @@ function FormularioUsuario({ onCancelar, onListo }) {
     setEnviando(true);
     setError(null);
     try {
-      const { usuario } = await usuariosApi.crear(valores);
-      onListo(usuario);
+      const res = await usuariosApi.crear(valores);
+      onListo(res.usuario, valores.password, res.correoEnviado);
     } catch (err) {
       setError(mensajeDeError(err, 'No se pudo crear el usuario.'));
     } finally {
@@ -269,25 +340,35 @@ function FormularioUsuario({ onCancelar, onListo }) {
       <Input label="Apellidos" name="apellidos" required maxLength={100} value={valores.apellidos} onChange={handleChange} />
       <div className="col-span-2">
         <Input
-          label="Correo institucional"
+          label="Correo electrónico (Gmail o institucional)"
           type="email"
           name="correo"
           required
           maxLength={100}
           value={valores.correo}
           onChange={handleChange}
-          placeholder="nombre@uta.edu.ec"
+          placeholder="ejemplo@gmail.com o usuario@uta.edu.ec"
         />
+        <p className="text-xs text-ink/50 mt-1">Puedes ingresar un correo Gmail para probar el envío de credenciales con el docente o evaluador.</p>
       </div>
       <div className="col-span-2">
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-xs font-medium text-ink/70">Contraseña inicial</label>
+          <button
+            type="button"
+            onClick={generarPassword}
+            className="text-xs text-azul hover:underline font-medium flex items-center gap-1"
+          >
+            ⚡ Generar contraseña aleatoria
+          </button>
+        </div>
         <Input
-          label="Contraseña inicial"
           name="password"
           required
           minLength={6}
           value={valores.password}
           onChange={handleChange}
-          placeholder="Mínimo 6 caracteres"
+          placeholder="Mínimo 6 caracteres o pulsa 'Generar contraseña'"
         />
       </div>
 
@@ -297,12 +378,12 @@ function FormularioUsuario({ onCancelar, onListo }) {
         </div>
       )}
 
-      <div className="col-span-2 flex justify-end gap-3">
+      <div className="col-span-2 flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancelar}>
           Cancelar
         </Button>
         <Button type="submit" cargando={enviando} textoCargando="Creando…">
-          Crear usuario
+          Crear y generar credenciales
         </Button>
       </div>
     </form>

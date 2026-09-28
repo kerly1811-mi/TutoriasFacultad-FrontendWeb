@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { ACCESO_RUTA } from './lib/permisos';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
+import RecuperarPassword from './pages/RecuperarPassword';
 import Dashboard from './pages/Dashboard';
 import Tutorias from './pages/Tutorias';
 import Reservas from './pages/Reservas';
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
+          <Route path="/recuperar-password" element={<RecuperarPassword />} />
 
           {/* Layout estructural compartido: no se desmonta al cambiar de ruta */}
           <Route

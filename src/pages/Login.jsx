@@ -49,6 +49,15 @@ export default function Login() {
           placeholder="••••••••"
         />
 
+        <div className="flex justify-end -mt-2">
+          <Link
+            to="/recuperar-password"
+            className="text-xs text-azul hover:text-azul-dark hover:underline font-medium"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+
         <Alert>{error}</Alert>
 
         <Button type="submit" block cargando={cargando} textoCargando="Ingresando…">
