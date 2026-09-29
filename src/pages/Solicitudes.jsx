@@ -63,11 +63,88 @@ const COLUMNAS_ESTUDIANTE = [
   { clave: 'acciones', titulo: '', className: 'text-right' },
 ];
 
+const COLUMNAS_GESTION = [
+  { clave: 'estudiante', titulo: 'Estudiante' },
+  { clave: 'curso', titulo: 'Curso' },
+  { clave: 'docente', titulo: 'Docente' },
+  { clave: 'cuando', titulo: 'Fecha y hora' },
+  { clave: 'espacio', titulo: 'Espacio' },
+  { clave: 'estado', titulo: 'Estado' },
+];
+
 export default function Solicitudes() {
   const { usuario } = useAuth();
-  const esDocente = usuario?.rol === 'DOCENTE';
+  const rol = usuario?.rol;
 
-  return esDocente ? <VistaDocente /> : <VistaEstudiante />;
+  if (rol === 'DOCENTE') return <VistaDocente />;
+  if (rol === 'LABORATORISTA') return <VistaGestion />;
+  return <VistaEstudiante />;
+}
+
+// ============================================================
+// LABORATORISTA: listado de todas las solicitudes, solo lectura
+// (aceptar/rechazar sigue siendo exclusivo del docente dueño del curso).
+// ============================================================
+function VistaGestion() {
+  const cargar = useCallback(() => solicitudesApi.listar(), []);
+  const { data, cargando, error } = useApiResource(cargar, {
+    mensajeError: 'No se pudieron cargar las solicitudes.',
+  });
+  const solicitudes = data ?? [];
+
+  return (
+    <Layout>
+      <PageHeader
+        titulo="Todas las solicitudes"
+        descripcion="Solicitudes de tutoría que los estudiantes envían a los docentes."
+      />
+
+      <div className="mt-6">
+        <DataState
+          cargando={cargando}
+          error={error}
+          vacio={solicitudes.length === 0}
+          skeleton={<SkeletonCards count={3} />}
+          mensajeVacio="Todavía no hay solicitudes registradas."
+        >
+          <Table
+            columnas={COLUMNAS_GESTION}
+            datos={solicitudes}
+            renderFila={(s) => (
+              <tr key={s.id_sol} className="border-b border-line last:border-0 align-top">
+                <td className="px-5 py-3">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-line text-ink/60 text-xs font-semibold shrink-0">
+                      {inicialesDe(`${s.estudiante.nombres} ${s.estudiante.apellidos}`)}
+                    </span>
+                    <span className="text-ink">
+                      {s.estudiante.nombres} {s.estudiante.apellidos}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-5 py-3 text-ink/70">
+                  {s.paralelo.materia.nom_mat} · {s.paralelo.nom_par}
+                </td>
+                <td className="px-5 py-3 text-ink/70">
+                  {s.paralelo.docente?.nombres} {s.paralelo.docente?.apellidos}
+                </td>
+                <td className="px-5 py-3 text-ink/70">
+                  {formatearFecha(s.fecha)} · {formatearRango(s.hor_ini, s.hor_fin)}
+                </td>
+                <td className="px-5 py-3 text-ink/70">{s.espacio.nom_esp}</td>
+                <td className="px-5 py-3">
+                  <Badge className={ESTILO_ESTADO[s.estado]}>{ETIQUETA_ESTADO[s.estado]}</Badge>
+                  {s.estado === 'RECHAZADA' && s.razon_rechazo && (
+                    <p className="text-xs text-danger mt-1 max-w-[16rem]">{s.razon_rechazo}</p>
+                  )}
+                </td>
+              </tr>
+            )}
+          />
+        </DataState>
+      </div>
+    </Layout>
+  );
 }
 
 // ============================================================

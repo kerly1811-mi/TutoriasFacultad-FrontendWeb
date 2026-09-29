@@ -6,8 +6,20 @@ import { usuariosApi } from '../api/endpoints/usuarios';
 import { ETIQUETA_ESTADO_ACTIVO, ESTILO_ESTADO_ACTIVO, ETIQUETA_ROL, OPCIONES_ROL_GESTIONABLE } from '../lib/constantes';
 import { mensajeDeError } from '../lib/formato';
 import { cedulaValida } from '../lib/validadores';
-import { Alert, Badge, Button, ConfirmDialog, Input, Modal, Select, Table, normalizarBusqueda } from '../components/ui';
-import { AdminPageTemplate } from '../components/admin';
+import {
+  Alert,
+  Badge,
+  Buscador,
+  Button,
+  Card,
+  ConfirmDialog,
+  Input,
+  Modal,
+  PageHeader,
+  Select,
+  Table,
+  normalizarBusqueda,
+} from '../components/ui';
 import { useToast } from '../context/ToastContext';
 
 const COLUMNAS = [
@@ -107,175 +119,185 @@ export default function Usuarios() {
     window.open(urlGmail, '_blank');
   }
 
+  const hayFiltros = Boolean(busqueda.trim()) || filtroRol !== 'TODOS' || filtroEstado !== 'TODOS';
+  function limpiarFiltros() {
+    setBusqueda('');
+    setFiltroRol('TODOS');
+    setFiltroEstado('TODOS');
+  }
+
   return (
-    <AdminPageTemplate
-      titulo="Usuarios"
-      descripcion="Alta y gestión de docentes, laboratoristas y administradores. Los estudiantes se registran solos."
-      breadcrumbs={[
-        { etiqueta: 'Administración', to: '/dashboard' },
-        { etiqueta: 'Usuarios' },
-      ]}
-      acciones={<Button onClick={() => setModalAbierto(true)}>Nuevo usuario</Button>}
-      metricas={metricas}
-      busqueda={busqueda}
-      onBusquedaChange={setBusqueda}
-      placeholderBusqueda="Buscar por nombre, cédula o correo…"
-      filtros={
-        <>
-          <div className="w-40">
-            <Select
-              value={filtroRol}
-              onChange={(e) => setFiltroRol(e.target.value)}
-              options={[
-                { value: 'TODOS', label: 'Todos los roles' },
-                ...OPCIONES_ROL_GESTIONABLE,
-                { value: 'ESTUDIANTE', label: 'Estudiante' },
-              ]}
-            />
+    <>
+      <PageHeader
+        titulo="Usuarios"
+        descripcion="Alta y gestión de docentes, laboratoristas y administradores. Los estudiantes se registran solos."
+      >
+        <Button onClick={() => setModalAbierto(true)}>Nuevo usuario</Button>
+      </PageHeader>
+
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {metricas.map((m) => (
+          <Card key={m.etiqueta} padding="p-4 sm:p-5">
+            <p className="text-xs uppercase tracking-wide text-ink/50 font-medium">{m.etiqueta}</p>
+            <p className="font-display text-2xl text-ink font-semibold mt-1.5">{m.valor}</p>
+          </Card>
+        ))}
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(2,minmax(0,1fr))] gap-3">
+        <Buscador
+          className="col-span-2 lg:col-span-1"
+          value={busqueda}
+          onChange={setBusqueda}
+          placeholder="Buscar por nombre, cédula o correo…"
+        />
+        <Select
+          value={filtroRol}
+          onChange={(e) => setFiltroRol(e.target.value)}
+          options={[
+            { value: 'TODOS', label: 'Todos los roles' },
+            ...OPCIONES_ROL_GESTIONABLE,
+            { value: 'ESTUDIANTE', label: 'Estudiante' },
+          ]}
+        />
+        <Select
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+          options={[
+            { value: 'TODOS', label: 'Todos los estados' },
+            { value: 'ACTIVO', label: 'Activos' },
+            { value: 'INACTIVO', label: 'Inactivos' },
+          ]}
+        />
+      </div>
+
+      {hayFiltros && !cargando && (
+        <div className="mt-2 flex items-center gap-3 text-sm text-ink/50">
+          <span>
+            Mostrando {usuariosFiltrados.length} de {usuarios.length} usuario(s)
+          </span>
+          <button onClick={limpiarFiltros} className="text-azul font-medium hover:underline">
+            Limpiar filtros
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <Table
+          columnas={COLUMNAS}
+          datos={usuariosFiltrados}
+          cargando={cargando}
+          error={error}
+          mensajeVacio={usuarios.length === 0 ? 'No hay usuarios.' : 'Ningún usuario coincide con los filtros.'}
+          renderFila={(u) => (
+            <tr key={u.id_usr} className={`border-b border-line last:border-0 ${u.activo ? '' : 'opacity-60'}`}>
+              <td className="px-5 py-3">
+                {u.nombres} {u.apellidos}
+              </td>
+              <td className="px-5 py-3">{u.cedula}</td>
+              <td className="px-5 py-3 text-ink/70">{u.correo}</td>
+              <td className="px-5 py-3">
+                <Badge className="bg-celeste/10 text-celeste-dark">{ETIQUETA_ROL[u.rol] || u.rol}</Badge>
+              </td>
+              <td className="px-5 py-3">
+                <Badge className={ESTILO_ESTADO_ACTIVO[u.activo]}>{ETIQUETA_ESTADO_ACTIVO[u.activo]}</Badge>
+              </td>
+              <td className="px-5 py-3 text-sm">
+                {u.id_usr === usuarioActual?.id ? null : u.activo ? (
+                  <button onClick={() => setADeshabilitar(u)} className="text-danger font-medium hover:underline">
+                    Deshabilitar
+                  </button>
+                ) : (
+                  <button onClick={() => habilitar(u)} className="text-success font-medium hover:underline">
+                    Habilitar
+                  </button>
+                )}
+              </td>
+            </tr>
+          )}
+        />
+      </div>
+
+      {/* Modal Crear Usuario */}
+      <Modal abierto={modalAbierto} onCerrar={() => setModalAbierto(false)} titulo="Nuevo usuario">
+        <FormularioUsuario
+          onCancelar={() => setModalAbierto(false)}
+          onListo={(usuario, password, correoEnviado) => {
+            setModalAbierto(false);
+            setCreado({ ...usuario, password, correoEnviado });
+            recargar();
+          }}
+        />
+      </Modal>
+
+      {/* Modal de Credenciales creadas (con envío por Gmail y copia rápida) */}
+      <Modal abierto={Boolean(creado)} onCerrar={() => setCreado(null)} titulo="Credenciales del nuevo usuario">
+        <div className="space-y-4">
+          <div className="p-3.5 bg-success/10 border border-success/30 rounded-lg text-sm text-ink">
+            <p className="font-semibold text-success flex items-center gap-1.5">
+              ✓ ¡Usuario registrado con éxito!
+            </p>
+            <p className="text-xs text-ink/70 mt-1">
+              {creado?.correoEnviado
+                ? '✉️ Las credenciales fueron enviadas automáticamente al correo del usuario por el servidor.'
+                : 'El usuario ya está registrado en el sistema. Puedes enviarle sus credenciales ahora mismo por Gmail para testear o copiarlas al portapapeles.'}
+            </p>
           </div>
-          <div className="w-36">
-            <Select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              options={[
-                { value: 'TODOS', label: 'Todos los estados' },
-                { value: 'ACTIVO', label: 'Activos' },
-                { value: 'INACTIVO', label: 'Inactivos' },
-              ]}
-            />
-          </div>
-        </>
-      }
-      hayFiltrosActivos={Boolean(busqueda.trim()) || filtroRol !== 'TODOS' || filtroEstado !== 'TODOS'}
-      totalResultados={usuariosFiltrados.length}
-      totalTotal={usuarios.length}
-      onLimpiarFiltros={() => {
-        setBusqueda('');
-        setFiltroRol('TODOS');
-        setFiltroEstado('TODOS');
-      }}
-      cargando={cargando}
-      error={error}
-      onReintentar={recargar}
-      vacio={usuariosFiltrados.length === 0}
-      mensajeVacio="No se encontraron usuarios"
-      descripcionVacio="Probá ajustando el término de búsqueda o los filtros de rol y estado."
-      modales={
-        <>
-          {/* Modal Crear Usuario */}
-          <Modal abierto={modalAbierto} onCerrar={() => setModalAbierto(false)} titulo="Nuevo usuario">
-            <FormularioUsuario
-              onCancelar={() => setModalAbierto(false)}
-              onListo={(usuario, password, correoEnviado) => {
-                setModalAbierto(false);
-                setCreado({ ...usuario, password, correoEnviado });
-                recargar();
-              }}
-            />
-          </Modal>
 
-          {/* Modal de Credenciales creadas (con envío por Gmail y copia rápida) */}
-          <Modal abierto={Boolean(creado)} onCerrar={() => setCreado(null)} titulo="Credenciales del nuevo usuario">
-            <div className="space-y-4">
-              <div className="p-3.5 bg-success/10 border border-success/30 rounded-lg text-sm text-ink">
-                <p className="font-semibold text-success flex items-center gap-1.5">
-                  ✓ ¡Usuario registrado con éxito!
-                </p>
-                <p className="text-xs text-ink/70 mt-1">
-                  {creado?.correoEnviado
-                    ? '✉️ Las credenciales fueron enviadas automáticamente al correo del usuario por el servidor.'
-                    : 'El usuario ya está registrado en el sistema. Puedes enviarle sus credenciales ahora mismo por Gmail para testear o copiarlas al portapapeles.'}
-                </p>
-              </div>
-
-              <div className="space-y-2 rounded-lg border border-line bg-paper/60 p-4 font-mono text-xs">
-                <div className="flex justify-between items-center py-1 border-b border-line/50">
-                  <span className="text-ink/60 font-sans">Usuario / Nombre:</span>
-                  <span className="font-bold text-ink">{creado?.nombres} {creado?.apellidos}</span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-line/50">
-                  <span className="text-ink/60 font-sans">Correo electrónico:</span>
-                  <span className="font-bold text-ink">{creado?.correo}</span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-line/50">
-                  <span className="text-ink/60 font-sans">Contraseña temporal:</span>
-                  <span className="font-bold text-azul bg-white px-2.5 py-1 rounded border border-line text-sm select-all">
-                    {creado?.password}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-ink/60 font-sans">Rol asignado:</span>
-                  <span className="text-ink font-semibold">{ETIQUETA_ROL[creado?.rol] || creado?.rol}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                <Button variant="secondary" onClick={copiarCredenciales} className="flex-1">
-                  📋 Copiar credenciales
-                </Button>
-                <Button onClick={enviarPorGmail} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
-                  ✉️ Enviar por Gmail
-                </Button>
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-line">
-                <Button variant="secondary" size="sm" onClick={() => setCreado(null)}>
-                  Listo, cerrar
-                </Button>
-              </div>
+          <div className="space-y-2 rounded-lg border border-line bg-paper/60 p-4 font-mono text-xs">
+            <div className="flex justify-between items-center py-1 border-b border-line/50">
+              <span className="text-ink/60 font-sans">Usuario / Nombre:</span>
+              <span className="font-bold text-ink">{creado?.nombres} {creado?.apellidos}</span>
             </div>
-          </Modal>
+            <div className="flex justify-between items-center py-1 border-b border-line/50">
+              <span className="text-ink/60 font-sans">Correo electrónico:</span>
+              <span className="font-bold text-ink">{creado?.correo}</span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-line/50">
+              <span className="text-ink/60 font-sans">Contraseña temporal:</span>
+              <span className="font-bold text-azul bg-white px-2.5 py-1 rounded border border-line text-sm select-all">
+                {creado?.password}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-ink/60 font-sans">Rol asignado:</span>
+              <span className="text-ink font-semibold">{ETIQUETA_ROL[creado?.rol] || creado?.rol}</span>
+            </div>
+          </div>
 
-          {/* Diálogo Deshabilitar */}
-          <ConfirmDialog
-            abierto={Boolean(aDeshabilitar)}
-            titulo="Deshabilitar usuario"
-            mensaje={
-              aDeshabilitar
-                ? `¿Deshabilitar a "${aDeshabilitar.nombres} ${aDeshabilitar.apellidos}"? No podrá iniciar sesión hasta que lo vuelvas a habilitar.`
-                : ''
-            }
-            textoConfirmar="Deshabilitar"
-            textoCargando="Deshabilitando…"
-            cargando={cambiandoEstado}
-            onConfirmar={confirmarDeshabilitar}
-            onCancelar={() => setADeshabilitar(null)}
-          />
-        </>
-      }
-    >
-      <Table
-        columnas={COLUMNAS}
-        datos={usuariosFiltrados}
-        mensajeVacio="No hay usuarios."
-        renderFila={(u) => (
-          <tr key={u.id_usr} className={`border-b border-line last:border-0 ${u.activo ? '' : 'opacity-60'}`}>
-            <td className="px-5 py-3">
-              {u.nombres} {u.apellidos}
-            </td>
-            <td className="px-5 py-3">{u.cedula}</td>
-            <td className="px-5 py-3 text-ink/70">{u.correo}</td>
-            <td className="px-5 py-3">
-              <Badge className="bg-celeste/10 text-celeste-dark">{ETIQUETA_ROL[u.rol] || u.rol}</Badge>
-            </td>
-            <td className="px-5 py-3">
-              <Badge className={ESTILO_ESTADO_ACTIVO[u.activo]}>{ETIQUETA_ESTADO_ACTIVO[u.activo]}</Badge>
-            </td>
-            <td className="px-5 py-3 text-sm">
-              {u.id_usr === usuarioActual?.id ? null : u.activo ? (
-                <button onClick={() => setADeshabilitar(u)} className="text-danger font-medium hover:underline">
-                  Deshabilitar
-                </button>
-              ) : (
-                <button onClick={() => habilitar(u)} className="text-success font-medium hover:underline">
-                  Habilitar
-                </button>
-              )}
-            </td>
-          </tr>
-        )}
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <Button variant="secondary" onClick={copiarCredenciales} className="flex-1">
+              📋 Copiar credenciales
+            </Button>
+            <Button onClick={enviarPorGmail} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+              ✉️ Enviar por Gmail
+            </Button>
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-line">
+            <Button variant="secondary" size="sm" onClick={() => setCreado(null)}>
+              Listo, cerrar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Diálogo Deshabilitar */}
+      <ConfirmDialog
+        abierto={Boolean(aDeshabilitar)}
+        titulo="Deshabilitar usuario"
+        mensaje={
+          aDeshabilitar
+            ? `¿Deshabilitar a "${aDeshabilitar.nombres} ${aDeshabilitar.apellidos}"? No podrá iniciar sesión hasta que lo vuelvas a habilitar.`
+            : ''
+        }
+        textoConfirmar="Deshabilitar"
+        textoCargando="Deshabilitando…"
+        cargando={cambiandoEstado}
+        onConfirmar={confirmarDeshabilitar}
+        onCancelar={() => setADeshabilitar(null)}
       />
-    </AdminPageTemplate>
+    </>
   );
 }
 

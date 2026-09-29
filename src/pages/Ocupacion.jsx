@@ -306,15 +306,17 @@ export default function Ocupacion() {
                       </svg>
                     </summary>
                     <ul className="mt-2 space-y-1.5">
-                      {filas.map((o, i) => (
-                        <li key={`${esp.id_esp}-${i}`}>
-                          <FilaOcupacion
-                            o={o}
-                            puedeCancelar={puedeCancelar}
-                            onCancelar={() => setACancelar(o.id_rev)}
-                          />
-                        </li>
-                      ))}
+                      {filas
+                        .filter((o) => o !== destacado)
+                        .map((o, i) => (
+                          <li key={`${esp.id_esp}-${i}`}>
+                            <FilaOcupacion
+                              o={o}
+                              puedeCancelar={puedeCancelar}
+                              onCancelar={() => setACancelar(o.id_rev)}
+                            />
+                          </li>
+                        ))}
                     </ul>
                   </details>
                 </Card>

@@ -174,6 +174,7 @@ export default function ControlAcceso() {
             reserva={aEditar}
             espacios={espacios ?? []}
             misParalelos={misParalelos ?? []}
+            esDocente={esDocente}
             onCancelar={() => setAEditar(null)}
             onListo={() => {
               setAEditar(null);

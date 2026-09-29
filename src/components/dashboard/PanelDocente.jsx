@@ -31,14 +31,16 @@ export default function PanelDocente() {
     .filter((r) => r._estado === 'PENDIENTE' || r._estado === 'ACTIVA')
     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || a.hor_ini.localeCompare(b.hor_ini));
 
-  const materiales = reservas.reduce((acc, r) => acc + (r._count?.documentos ?? 0), 0);
-  const asistencias = reservas.reduce((acc, r) => acc + (r._count?.asistencias ?? 0), 0);
+  // No cuentan las canceladas: nunca se realizaron.
+  const noCanceladas = conEstado.filter((r) => r._estado !== 'CANCELADA');
+  const materiales = noCanceladas.reduce((acc, r) => acc + (r._count?.documentos ?? 0), 0);
+  const asistencias = noCanceladas.reduce((acc, r) => acc + (r._count?.asistencias ?? 0), 0);
 
   return (
     <DataState cargando={cargando} error={error} vacio={false}>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
         <StatTile etiqueta="Mis tutorías" valor={proximas.length} subvalor="próximas" tono="azul" icono={<IconoNav ruta="/reservas" />} />
-        <StatTile etiqueta="Reservas realizadas" valor={reservas.length} subvalor="en total" tono="success" icono={<IconoNav ruta="/reportes" />} />
+        <StatTile etiqueta="Reservas realizadas" valor={noCanceladas.length} subvalor="en total" tono="success" icono={<IconoNav ruta="/reportes" />} />
         <StatTile etiqueta="Materiales compartidos" valor={materiales} tono="purpura" icono={<IconoNav ruta="/control-acceso" />} />
         <StatTile etiqueta="Asistencias registradas" valor={asistencias} tono="amber" icono={<IconoNav ruta="/control-acceso" />} />
       </div>

@@ -9,7 +9,9 @@ const HORA_MAX = 20;
 
 // Editar aula, fecha, hora y curso/tema de una reserva ya creada. Lo usan
 // Control de acceso y el Detalle de tutoría (mismo endpoint PUT /reservas/:id).
-export default function FormularioEditarReserva({ reserva, espacios, misParalelos, onCancelar, onListo }) {
+// `esDocente`: si es false (laboratorista), pide un motivo libre en vez de curso,
+// igual que al crear la reserva.
+export default function FormularioEditarReserva({ reserva, espacios, misParalelos, esDocente = true, onCancelar, onListo }) {
   const { valores, handleChange, setCampo } = useForm({
     id_esp: reserva.id_esp ? String(reserva.id_esp) : '',
     fecha: String(reserva.fecha).slice(0, 10),
@@ -34,7 +36,8 @@ export default function FormularioEditarReserva({ reserva, espacios, misParalelo
     if (valores.hora_fin <= valores.hora_ini) {
       return setError('La hora de fin debe ser posterior a la de inicio.');
     }
-    if (!valores.id_par) return setError('Selecciona el curso.');
+    if (esDocente && !valores.id_par) return setError('Selecciona el curso.');
+    if (!esDocente && !valores.tema.trim()) return setError('Indica un motivo para la reserva.');
     setEnviando(true);
     try {
       await reservasApi.actualizar(reserva.id_rev, {
@@ -43,7 +46,7 @@ export default function FormularioEditarReserva({ reserva, espacios, misParalelo
         hor_ini: valores.hora_ini,
         hor_fin: valores.hora_fin,
         motivo: valores.tema,
-        id_par: Number(valores.id_par),
+        ...(esDocente && { id_par: Number(valores.id_par) }),
       });
       onListo();
     } catch (err) {
@@ -64,14 +67,16 @@ export default function FormularioEditarReserva({ reserva, espacios, misParalelo
         ))}
       </Select>
 
-      <Select label="Curso" name="id_par" required value={valores.id_par} onChange={handleChange}>
-        <option value="">Selecciona un curso</option>
-        {misParalelos.map((p) => (
-          <option key={p.id_par} value={p.id_par}>
-            {p.materia?.nom_mat} · Paralelo {p.nom_par}
-          </option>
-        ))}
-      </Select>
+      {esDocente && (
+        <Select label="Curso" name="id_par" required value={valores.id_par} onChange={handleChange}>
+          <option value="">Selecciona un curso</option>
+          {misParalelos.map((p) => (
+            <option key={p.id_par} value={p.id_par}>
+              {p.materia?.nom_mat} · Paralelo {p.nom_par}
+            </option>
+          ))}
+        </Select>
+      )}
 
       <Input label="Fecha" type="date" name="fecha" min={HOY} required value={valores.fecha} onChange={handleChange} />
 
@@ -97,12 +102,13 @@ export default function FormularioEditarReserva({ reserva, espacios, misParalelo
       </div>
 
       <Textarea
-        label="Tema de la tutoría"
+        label={esDocente ? 'Tema de la tutoría' : 'Motivo de la reserva'}
+        required={!esDocente}
         rows={2}
         name="tema"
         value={valores.tema}
         onChange={handleChange}
-        placeholder="Refuerzo de bases de datos, tema del segundo parcial…"
+        placeholder={esDocente ? 'Refuerzo de bases de datos, tema del segundo parcial…' : 'Mantenimiento, evento, uso interno…'}
       />
 
       {error && <Alert>{error}</Alert>}

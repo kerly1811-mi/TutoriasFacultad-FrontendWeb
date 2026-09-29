@@ -13,12 +13,21 @@ import {
   OPCIONES_TIPO_ESPACIO,
   ubicacionEspacio,
 } from '../lib/constantes';
-import { fechaISO, horaEnMinutos, horaEnRango, mensajeDeError } from '../lib/formato';
+import {
+  estadoReserva,
+  fechaISO,
+  formatearFecha,
+  formatearRango,
+  horaEnMinutos,
+  horaEnRango,
+  mensajeDeError,
+} from '../lib/formato';
 import {
   Alert,
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   DataState,
   Input,
   Modal,
@@ -26,6 +35,7 @@ import {
   Select,
   SelectorHora,
   SkeletonCards,
+  Table,
   Textarea,
 } from '../components/ui';
 
@@ -104,12 +114,289 @@ function calcularHueco(espacio, horaIni, horaFinBusqueda) {
   return { inicioMin, finMin };
 }
 
+// El laboratorista gestiona el listado de reservas hechas (con cancelar); el
+// docente reserva un espacio para sí mismo. Misma ruta ("/reservas"), vista
+// distinta por rol.
+export default function Reservas() {
+  const { usuario } = useAuth();
+  return usuario?.rol === 'LABORATORISTA' ? <VistaLaboratorista /> : <VistaDocente />;
+}
+
+// ============================================================
+// LABORATORISTA
+// ============================================================
+const PESTANAS_RESERVAS = [
+  { clave: 'proximas', etiqueta: 'Próximas' },
+  { clave: 'anteriores', etiqueta: 'Anteriores' },
+  { clave: 'canceladas', etiqueta: 'Canceladas' },
+];
+const ETIQUETA_ESTADO_RESERVA = { PENDIENTE: 'Pendiente', ACTIVA: 'Activa', CONCLUIDA: 'Concluida', CANCELADA: 'Cancelada' };
+const ESTILO_ESTADO_RESERVA = {
+  PENDIENTE: 'bg-celeste/15 text-celeste-dark border border-celeste/30',
+  ACTIVA: 'bg-success/15 text-success border border-success/30',
+  CONCLUIDA: 'bg-azul-dark/10 text-azul-dark border border-azul-dark/20',
+  CANCELADA: 'bg-danger/10 text-danger border border-danger/20',
+};
+const COLUMNAS_RESERVAS = [
+  { clave: 'espacio', titulo: 'Espacio' },
+  { clave: 'fecha', titulo: 'Fecha' },
+  { clave: 'horario', titulo: 'Horario' },
+  { clave: 'solicitante', titulo: 'Solicitada por' },
+  { clave: 'motivo', titulo: 'Motivo' },
+  { clave: 'estado', titulo: 'Estado' },
+  { clave: 'acciones', titulo: '', className: 'text-right' },
+];
+
+/**
+ * Listado de reservas de espacios (no el detalle de la tutoría): qué aula, cuándo
+ * y quién la pidió. El laboratorista solo cancela (con motivo); crear una reserva
+ * es un modal discreto aparte, sin el listado de tarjetas por espacio del docente.
+ */
+function VistaLaboratorista() {
+  const { mostrarToast } = useToast();
+  const [pestana, setPestana] = useState('proximas');
+  const [modal, setModal] = useState(false);
+  const [aCancelar, setACancelar] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
+
+  const cargar = useCallback(() => reservasApi.listar(), []);
+  const { data, cargando, error, recargar } = useApiResource(cargar, {
+    mensajeError: 'No se pudo cargar el listado de reservas.',
+  });
+
+  const reservas = useMemo(() => (data ?? []).map((r) => ({ ...r, _estado: estadoReserva(r) })), [data]);
+  const filtradas = useMemo(
+    () =>
+      reservas
+        .filter((r) => {
+          if (pestana === 'canceladas') return r._estado === 'CANCELADA';
+          if (pestana === 'anteriores') return r._estado === 'CONCLUIDA';
+          return r._estado === 'PENDIENTE' || r._estado === 'ACTIVA';
+        })
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha) || a.hor_ini.localeCompare(b.hor_ini)),
+    [reservas, pestana]
+  );
+
+  async function confirmarCancelacion(razon) {
+    if (!aCancelar) return;
+    setCancelando(true);
+    try {
+      await reservasApi.cancelar(aCancelar.id_rev, razon);
+      await recargar();
+      mostrarToast('Reserva cancelada.', 'exito');
+    } catch (err) {
+      mostrarToast(mensajeDeError(err, 'No se pudo cancelar la reserva.'), 'error');
+    } finally {
+      setCancelando(false);
+      setACancelar(null);
+    }
+  }
+
+  return (
+    <Layout>
+      <PageHeader titulo="Reservas" descripcion="Reservas de aulas y laboratorios: cuándo, dónde y quién las pidió.">
+        <Button onClick={() => setModal(true)}>Nueva reserva</Button>
+      </PageHeader>
+
+      <div className="mt-6 flex gap-1 rounded-lg border border-line bg-white p-1 w-fit">
+        {PESTANAS_RESERVAS.map((p) => (
+          <button
+            key={p.clave}
+            type="button"
+            onClick={() => setPestana(p.clave)}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              pestana === p.clave ? 'bg-azul text-white' : 'text-ink/60 hover:bg-paper'
+            }`}
+          >
+            {p.etiqueta}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4">
+        <Table
+          columnas={COLUMNAS_RESERVAS}
+          datos={filtradas}
+          cargando={cargando}
+          error={error}
+          mensajeVacio="No hay reservas en esta vista."
+          renderFila={(r) => (
+            <tr key={r.id_rev} className="border-b border-line last:border-0">
+              <td className="px-5 py-3 font-medium text-ink">{r.espacio?.nom_esp || '—'}</td>
+              <td className="px-5 py-3 text-ink/70">{formatearFecha(r.fecha)}</td>
+              <td className="px-5 py-3 text-ink/70">{formatearRango(r.hor_ini, r.hor_fin)}</td>
+              <td className="px-5 py-3 text-ink/70">
+                {r.solicitante ? `${r.solicitante.nombres} ${r.solicitante.apellidos}` : '—'}
+              </td>
+              <td className="px-5 py-3 text-ink/70 max-w-[16rem] truncate">{r.motivo || '—'}</td>
+              <td className="px-5 py-3">
+                <Badge className={ESTILO_ESTADO_RESERVA[r._estado]}>{ETIQUETA_ESTADO_RESERVA[r._estado]}</Badge>
+              </td>
+              <td className="px-5 py-3 text-right">
+                {(r._estado === 'PENDIENTE' || r._estado === 'ACTIVA') && (
+                  <button
+                    type="button"
+                    onClick={() => setACancelar(r)}
+                    className="text-sm text-danger font-medium hover:underline"
+                  >
+                    Cancelar reserva
+                  </button>
+                )}
+              </td>
+            </tr>
+          )}
+        />
+      </div>
+
+      <Modal abierto={modal} onCerrar={() => setModal(false)} titulo="Nueva reserva" ancho="max-w-sm">
+        <FormularioReservaDirecta
+          onCancelar={() => setModal(false)}
+          onListo={() => {
+            setModal(false);
+            recargar();
+            mostrarToast('Reserva creada.', 'exito');
+          }}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        abierto={Boolean(aCancelar)}
+        titulo="Cancelar reserva"
+        mensaje="¿Cancelar esta reserva? El aula quedará libre en esa franja."
+        textoConfirmar="Cancelar reserva"
+        textoCargando="Cancelando…"
+        pedirRazon
+        labelRazon="Motivo de la cancelación"
+        placeholderRazon="Ej: mantenimiento urgente del aula"
+        cargando={cancelando}
+        onConfirmar={confirmarCancelacion}
+        onCancelar={() => setACancelar(null)}
+      />
+    </Layout>
+  );
+}
+
+// Modal discreto (como "Solicitar reserva" del estudiante) pero crea la reserva
+// directo -- sin pasar por una Solicitud que un docente deba aceptar.
+function FormularioReservaDirecta({ onCancelar, onListo }) {
+  const [fecha, setFecha] = useState('');
+  const [horaIni, setHoraIni] = useState('');
+  const [horaFin, setHoraFin] = useState('');
+  const [idEspacio, setIdEspacio] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+
+  const HOY = hoyISO();
+  const franjaCompleta =
+    fecha &&
+    horaEnRango(horaIni, HORA_MIN, HORA_MAX) &&
+    horaEnRango(horaFin, HORA_MIN, HORA_MAX) &&
+    horaFin > horaIni;
+
+  const consultarDisponibilidad = useCallback(() => {
+    if (!franjaCompleta) return Promise.resolve(null);
+    return disponibilidadApi.consultar({ fecha, horaIni, horaFin });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [franjaCompleta, fecha, horaIni, horaFin]);
+  const { data: disponibilidad, cargando: cargandoEspacios } = useApiResource(consultarDisponibilidad, {
+    mensajeError: 'No se pudo consultar la disponibilidad.',
+  });
+  const espaciosLibres = (disponibilidad?.espacios ?? []).filter((e) => e.libre);
+
+  useEffect(() => {
+    if (idEspacio && !espaciosLibres.some((e) => String(e.id_esp) === idEspacio)) {
+      setIdEspacio('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disponibilidad]);
+
+  async function manejarEnvio(e) {
+    e.preventDefault();
+    setError(null);
+    if (!fecha) return setError('Selecciona la fecha.');
+    if (!horaEnRango(horaIni, HORA_MIN, HORA_MAX) || !horaEnRango(horaFin, HORA_MIN, HORA_MAX)) {
+      return setError(`La hora debe estar entre las ${HORA_MIN}:00 y las ${HORA_MAX}:00.`);
+    }
+    if (horaFin <= horaIni) return setError('La hora de fin debe ser posterior a la de inicio.');
+    if (!idEspacio) return setError('Selecciona un espacio libre para esa fecha y hora.');
+    if (!motivo.trim()) return setError('Indica un motivo para la reserva.');
+
+    setEnviando(true);
+    try {
+      await reservasApi.crear({
+        id_esp: Number(idEspacio),
+        fecha,
+        hor_ini: horaIni,
+        hor_fin: horaFin,
+        motivo: motivo.trim(),
+      });
+      onListo();
+    } catch (err) {
+      setError(mensajeDeError(err, 'No se pudo crear la reserva.'));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={manejarEnvio} className="space-y-4">
+      <Input label="Fecha" type="date" min={HOY} required value={fecha} onChange={(e) => setFecha(e.target.value)} />
+
+      <div className="flex flex-wrap gap-3">
+        <SelectorHora label="Desde" value={horaIni} onChange={setHoraIni} horaMin={HORA_MIN} horaMax={HORA_MAX} className="w-32" />
+        <SelectorHora label="Hasta" value={horaFin} onChange={setHoraFin} horaMin={HORA_MIN} horaMax={HORA_MAX} className="w-32" />
+      </div>
+
+      <Select
+        label="Espacio"
+        required
+        value={idEspacio}
+        onChange={(e) => setIdEspacio(e.target.value)}
+        disabled={!franjaCompleta || cargandoEspacios}
+      >
+        <option value="">
+          {!franjaCompleta ? 'Primero indica fecha y horas' : cargandoEspacios ? 'Consultando…' : 'Selecciona un espacio libre'}
+        </option>
+        {espaciosLibres.map((e) => (
+          <option key={e.id_esp} value={e.id_esp}>
+            {e.nom_esp} · {ETIQUETA_TIPO_ESPACIO[e.tipo] || e.tipo}
+          </option>
+        ))}
+      </Select>
+      {franjaCompleta && !cargandoEspacios && espaciosLibres.length === 0 && (
+        <p className="text-xs text-ink/50">Ningún espacio está libre en esa franja.</p>
+      )}
+
+      <Textarea
+        label="Motivo"
+        required
+        rows={2}
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        placeholder="Mantenimiento, evento, uso interno…"
+      />
+
+      {error && <Alert>{error}</Alert>}
+
+      <div className="flex justify-end gap-3">
+        <Button type="button" variant="secondary" onClick={onCancelar}>
+          Cancelar
+        </Button>
+        <Button type="submit" cargando={enviando} textoCargando="Reservando…">
+          Confirmar reserva
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * Página de reserva para el docente: filtros siempre visibles arriba, y debajo los
  * espacios disponibles en ese momento para reservar al instante. Al elegir horario
  * se abre un modal con el resumen, el tema y el curso.
  */
-export default function ReservarEspacio() {
+function VistaDocente() {
   const { usuario } = useAuth();
   const { mostrarToast } = useToast();
   const location = useLocation();
@@ -268,7 +555,7 @@ export default function ReservarEspacio() {
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         <DataState
           cargando={cargando}
           error={error}
@@ -297,6 +584,7 @@ export default function ReservarEspacio() {
         espacio={seleccionado?.espacio}
         hueco={seleccionado?.hueco}
         fecha={fecha}
+        esDocente={usuario?.rol === 'DOCENTE'}
         misParalelos={misParalelos ?? []}
         prefillIdParalelo={prefill?.idParalelo}
         prefillTema={prefill?.tema}
@@ -330,10 +618,10 @@ function TarjetaEspacio({ espacio, hueco, fecha, onSeleccionar }) {
         </Badge>
       </div>
 
-      {espacio.ocupaciones.length > 0 && (
+      {!hueco && espacio.ocupaciones.length > 0 && (
         <details className="mt-3 pt-3 border-t border-line group">
           <summary className="flex items-center justify-between gap-2 cursor-pointer select-none list-none text-sm text-ink/60">
-            <span className="truncate">
+            <span className="min-w-0">
               {destacada.hora_ini}–{destacada.hora_fin} · {destacada.tipo === 'CLASE' ? 'Clase' : 'Reserva'}:{' '}
               {destacada.etiqueta}
             </span>
@@ -351,11 +639,13 @@ function TarjetaEspacio({ espacio, hueco, fecha, onSeleccionar }) {
             </svg>
           </summary>
           <ul className="mt-2 space-y-1">
-            {espacio.ocupaciones.map((o, i) => (
-              <li key={`${espacio.id_esp}-${i}`} className="text-sm text-ink/60">
-                {o.hora_ini}–{o.hora_fin} · {o.tipo === 'CLASE' ? 'Clase' : 'Reserva'}: {o.etiqueta}
-              </li>
-            ))}
+            {espacio.ocupaciones
+              .filter((o) => o !== destacada)
+              .map((o, i) => (
+                <li key={`${espacio.id_esp}-${i}`} className="text-sm text-ink/60">
+                  {o.hora_ini}–{o.hora_fin} · {o.tipo === 'CLASE' ? 'Clase' : 'Reserva'}: {o.etiqueta}
+                </li>
+              ))}
           </ul>
         </details>
       )}
@@ -369,7 +659,7 @@ function TarjetaEspacio({ espacio, hueco, fecha, onSeleccionar }) {
   );
 }
 
-function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, prefillIdParalelo, prefillTema, onCerrar, onReservado }) {
+function ModalReservaRapida({ abierto, espacio, hueco, fecha, esDocente, misParalelos, prefillIdParalelo, prefillTema, onCerrar, onReservado }) {
   if (!abierto || !espacio || !hueco) {
     return <Modal abierto={false} onCerrar={onCerrar} titulo="" />;
   }
@@ -385,6 +675,7 @@ function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, pref
         fecha={fecha}
         hueco={hueco}
         esFlexible={esFlexible}
+        esDocente={esDocente}
         misParalelos={misParalelos}
         prefillIdParalelo={prefillIdParalelo}
         prefillTema={prefillTema}
@@ -395,7 +686,10 @@ function ModalReservaRapida({ abierto, espacio, hueco, fecha, misParalelos, pref
   );
 }
 
-function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalelos, prefillIdParalelo, prefillTema, onCancelar, onListo }) {
+// El docente reserva para uno de sus cursos (id_par); cualquier otro rol
+// (laboratorista) indica solo un motivo libre, igual que la reserva "suelta"
+// de la página de Horarios.
+function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, esDocente, misParalelos, prefillIdParalelo, prefillTema, onCancelar, onListo }) {
   const [horaIni, setHoraIni] = useState(minAHora(hueco.inicioMin));
   const [horaFin, setHoraFin] = useState(minAHora(Math.min(hueco.inicioMin + 60, hueco.finMin)));
   const [motivo, setMotivo] = useState(prefillTema || '');
@@ -416,7 +710,8 @@ function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalel
     if (iniMin < hueco.inicioMin || finMin > hueco.finMin) {
       return setError(`El horario debe estar entre ${minAHora(hueco.inicioMin)} y ${minAHora(hueco.finMin)}.`);
     }
-    if (!idParalelo) return setError('Selecciona el curso al que pertenece esta tutoría.');
+    if (esDocente && !idParalelo) return setError('Selecciona el curso al que pertenece esta tutoría.');
+    if (!esDocente && !motivo.trim()) return setError('Indica un motivo para la reserva.');
 
     setEnviando(true);
     try {
@@ -426,7 +721,7 @@ function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalel
         hor_ini: horaIni,
         hor_fin: horaFin,
         motivo,
-        id_par: idParalelo,
+        ...(esDocente && { id_par: idParalelo }),
       });
       onListo(`Reserva confirmada: ${espacio.nom_esp}, ${fecha} de ${horaIni} a ${horaFin}.`);
     } catch (err) {
@@ -469,25 +764,27 @@ function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalel
       )}
 
       <Textarea
-        label="Tema de la tutoría"
+        label={esDocente ? 'Tema de la tutoría' : 'Motivo de la reserva'}
+        required={!esDocente}
         rows={2}
         value={motivo}
         onChange={(e) => setMotivo(e.target.value)}
-        placeholder="Tutoría de Programación, paralelo A"
+        placeholder={esDocente ? 'Tutoría de Programación, paralelo A' : 'Mantenimiento, evento, uso interno…'}
       />
 
-      {misParalelos.length > 0 ? (
-        <Select label="Curso" required value={idParalelo} onChange={(e) => setIdParalelo(e.target.value)}>
-          <option value="">Selecciona un curso</option>
-          {misParalelos.map((p) => (
-            <option key={p.id_par} value={p.id_par}>
-              {p.materia?.nom_mat} · Paralelo {p.nom_par} ({p.nivel?.nom_niv}, {p.nivel?.carrera?.nom_car})
-            </option>
-          ))}
-        </Select>
-      ) : (
-        <Alert>No tienes cursos asignados. Pídele al administrador que te asigne uno para poder reservar.</Alert>
-      )}
+      {esDocente &&
+        (misParalelos.length > 0 ? (
+          <Select label="Curso" required value={idParalelo} onChange={(e) => setIdParalelo(e.target.value)}>
+            <option value="">Selecciona un curso</option>
+            {misParalelos.map((p) => (
+              <option key={p.id_par} value={p.id_par}>
+                {p.materia?.nom_mat} · Paralelo {p.nom_par} ({p.nivel?.nom_niv}, {p.nivel?.carrera?.nom_car})
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <Alert>No tienes cursos asignados. Pídele al administrador que te asigne uno para poder reservar.</Alert>
+        ))}
 
       {error && <Alert>{error}</Alert>}
 
@@ -495,7 +792,12 @@ function FormularioReservaRapida({ espacio, fecha, hueco, esFlexible, misParalel
         <Button type="button" variant="secondary" onClick={onCancelar}>
           Cancelar
         </Button>
-        <Button type="submit" cargando={enviando} textoCargando="Confirmando…" disabled={misParalelos.length === 0}>
+        <Button
+          type="submit"
+          cargando={enviando}
+          textoCargando="Confirmando…"
+          disabled={esDocente && misParalelos.length === 0}
+        >
           Confirmar reserva
         </Button>
       </div>

@@ -12,17 +12,17 @@ export const NAV = [
   { to: '/mis-tutorias', etiqueta: 'Mis tutorías', roles: ['ESTUDIANTE'] },
   { to: '/ocupacion', etiqueta: 'Disponibilidad', roles: ['ESTUDIANTE'] },
 
-  // Docente / Administrador
+  // Docente / Laboratorista
   { to: '/mis-clases', etiqueta: 'Mis clases', roles: ['DOCENTE'] },
   {
     to: '/reservas',
-    etiqueta: (rol) => (rol === 'ADMINISTRADOR' ? 'Reservas' : 'Reservar un espacio'),
-    roles: ['DOCENTE', 'ADMINISTRADOR'],
+    etiqueta: (rol) => (rol === 'DOCENTE' ? 'Reservar un espacio' : 'Reservas'),
+    roles: ['DOCENTE', 'LABORATORISTA'],
   },
 
   // Laboratorista / Administrador
-  { to: '/espacios', etiqueta: 'Espacios', roles: ['LABORATORISTA', 'ADMINISTRADOR'] },
-  { to: '/horarios', etiqueta: 'Horarios', roles: ['LABORATORISTA', 'ADMINISTRADOR'] },
+  { to: '/espacios', etiqueta: 'Espacios', roles: ['LABORATORISTA'] },
+  { to: '/horarios', etiqueta: 'Horarios', roles: ['LABORATORISTA'] },
   { to: '/ocupacion', etiqueta: 'Ocupación', roles: ['LABORATORISTA', 'ADMINISTRADOR'] },
 
   // Administrador
@@ -40,15 +40,11 @@ export const NAV = [
   { to: '/matriculas', etiqueta: 'Matrículas', roles: ['ADMINISTRADOR'] },
 
   // Compartidas
-  {
-    to: '/control-acceso',
-    etiqueta: (rol) => (rol === 'DOCENTE' ? 'Panel de asistencia' : 'Control de acceso'),
-    roles: ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
-  },
+  { to: '/control-acceso', etiqueta: 'Panel de asistencia', roles: ['DOCENTE'] },
   {
     to: '/solicitudes',
-    etiqueta: (rol) => (rol === 'DOCENTE' ? 'Mis solicitudes' : rol === 'ADMINISTRADOR' ? 'Todas las solicitudes' : 'Solicitudes'),
-    roles: ['DOCENTE', 'ESTUDIANTE', 'ADMINISTRADOR'],
+    etiqueta: (rol) => (rol === 'DOCENTE' ? 'Mis solicitudes' : rol === 'LABORATORISTA' ? 'Solicitudes emitidas' : 'Solicitudes'),
+    roles: ['DOCENTE', 'ESTUDIANTE', 'LABORATORISTA'],
   },
   { to: '/reportes', etiqueta: 'Reportes', roles: ['DOCENTE', 'ADMINISTRADOR'] },
 ];
@@ -57,18 +53,18 @@ export const NAV = [
 export const ACCESO_RUTA = {
   '/dashboard': ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'],
   '/tutorias': ['ESTUDIANTE', 'DOCENTE', 'ADMINISTRADOR', 'LABORATORISTA'],
-  '/reservas': ['DOCENTE', 'ADMINISTRADOR'],
-  '/reservas/:id': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
-  '/horarios': ['LABORATORISTA', 'ADMINISTRADOR'],
+  '/reservas': ['DOCENTE', 'LABORATORISTA'],
+  '/reservas/:id': ['DOCENTE', 'LABORATORISTA'],
+  '/horarios': ['LABORATORISTA'],
   '/ocupacion': ['LABORATORISTA', 'ADMINISTRADOR', 'ESTUDIANTE'],
-  '/espacios': ['LABORATORISTA', 'ADMINISTRADOR'],
+  '/espacios': ['LABORATORISTA'],
   '/usuarios': ['ADMINISTRADOR'],
   '/carreras': ['ADMINISTRADOR'],
   '/materias': ['ADMINISTRADOR'],
   '/paralelos': ['ADMINISTRADOR'],
   '/matriculas': ['ADMINISTRADOR'],
-  '/control-acceso': ['DOCENTE', 'LABORATORISTA', 'ADMINISTRADOR'],
-  '/solicitudes': ['DOCENTE', 'ESTUDIANTE', 'ADMINISTRADOR'],
+  '/control-acceso': ['DOCENTE'],
+  '/solicitudes': ['DOCENTE', 'ESTUDIANTE', 'LABORATORISTA'],
   '/mis-horarios': ['ESTUDIANTE'],
   '/mis-tutorias': ['ESTUDIANTE'],
   '/matricula': ['ESTUDIANTE'],

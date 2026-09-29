@@ -208,6 +208,7 @@ export default function DetalleReserva() {
               reserva={reserva}
               espacios={espacios ?? []}
               misParalelos={misParalelos ?? []}
+              esDocente={usuario?.rol === 'DOCENTE'}
               onCancelar={() => setEditando(false)}
               onListo={() => {
                 setEditando(false);
