@@ -8,6 +8,8 @@ const RUTA_POR_TIPO = {
   SOLICITUD_ACEPTADA: '/solicitudes',
   SOLICITUD_RECHAZADA: '/solicitudes',
   RESERVA_CANCELADA: { ESTUDIANTE: '/mis-tutorias', DOCENTE: '/control-acceso' },
+  TUTORIA_INICIO: { ESTUDIANTE: '/mis-tutorias' },
+  DOCUMENTO_NUEVO: { ESTUDIANTE: '/mis-tutorias' },
 };
 
 function tiempoRelativo(fechaISO) {
